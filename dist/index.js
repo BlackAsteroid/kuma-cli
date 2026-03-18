@@ -27575,12 +27575,30 @@ Object.assign(lookup, {
 // src/client.ts
 var KumaClient = class {
   constructor(url2) {
+    // Kuma pushes heartbeatList and uptime events immediately on connect (before
+    // getMonitorList is called), so we buffer them for later use.
+    this.heartbeatCache = {};
+    this.uptimeCache = {};
     this.url = url2;
     this.socket = lookup(url2, {
       transports: ["websocket"],
       reconnection: false,
       timeout: 1e4
     });
+    this.socket.on(
+      "heartbeatList",
+      (monitorId, data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          this.heartbeatCache[monitorId] = data[data.length - 1];
+        }
+      }
+    );
+    this.socket.on(
+      "uptime",
+      (monitorId, period, value2) => {
+        this.uptimeCache[`${monitorId}_${period}`] = value2;
+      }
+    );
   }
   /**
    * Wait for a server-pushed event (not a callback response).
@@ -27643,45 +27661,23 @@ var KumaClient = class {
     });
   }
   async getMonitorList() {
-    return new Promise((resolve) => {
-      const monitors = {};
-      const heartbeats = {};
-      const uptimes = {};
-      let monitorListReceived = false;
-      const mergeAndResolve = () => {
-        for (const [idStr, monitor] of Object.entries(monitors)) {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error("getMonitorList timeout")),
+        1e4
+      );
+      this.socket.once("monitorList", (data) => {
+        clearTimeout(timer);
+        for (const [idStr, monitor] of Object.entries(data)) {
           const id = Number(idStr);
-          const hb = heartbeats[id];
+          const hb = this.heartbeatCache[id];
           if (hb) monitor.heartbeat = hb;
-          const up24 = uptimes[`${id}_24`];
+          const up24 = this.uptimeCache[`${id}_24`];
           if (up24 !== void 0) monitor.uptime = up24;
         }
-        resolve(monitors);
-      };
-      const safetyTimer = setTimeout(() => mergeAndResolve(), 3e3);
-      this.socket.on(
-        "heartbeatList",
-        (monitorId, data) => {
-          if (Array.isArray(data) && data.length > 0) {
-            heartbeats[monitorId] = data[data.length - 1];
-          }
-        }
-      );
-      this.socket.on(
-        "uptime",
-        (monitorId, period, value2) => {
-          uptimes[`${monitorId}_${period}`] = value2;
-        }
-      );
-      this.socket.emit(
-        "getMonitorList",
-        (data) => {
-          Object.assign(monitors, data);
-          monitorListReceived = true;
-          clearTimeout(safetyTimer);
-          setTimeout(() => mergeAndResolve(), 1500);
-        }
-      );
+        resolve(data);
+      });
+      this.socket.emit("getMonitorList");
     });
   }
   // BUG-01 fix: addMonitor uses callback, not a separate event
@@ -30220,6 +30216,106 @@ ${list.length} monitor(s) total`);
       handleError(err);
     }
   });
+  monitors.command("down").description("Show only monitors that are currently DOWN").option("--json", "Output raw JSON").action(async (opts) => {
+    const config = getConfig();
+    if (!config) requireAuth();
+    try {
+      const client = await createAuthenticatedClient(
+        config.url,
+        config.token
+      );
+      const monitorMap = await client.getMonitorList();
+      client.disconnect();
+      const list = Object.values(monitorMap).filter(
+        (m) => m.heartbeat?.status === 0
+      );
+      if (opts.json) {
+        console.log(JSON.stringify(list, null, 2));
+        return;
+      }
+      if (list.length === 0) {
+        console.log("\u2705 All monitors are UP");
+        return;
+      }
+      const table = createTable([
+        "ID",
+        "Name",
+        "Type",
+        "URL / Host",
+        "Status",
+        "Uptime 24h",
+        "Ping"
+      ]);
+      list.forEach((m) => {
+        const target = m.url ?? (m.hostname ? `${m.hostname}:${m.port}` : "\u2014");
+        table.push([
+          String(m.id),
+          m.name,
+          m.type,
+          target,
+          statusLabel(0),
+          formatUptime(m.uptime),
+          formatPing(m.heartbeat?.ping)
+        ]);
+      });
+      console.log(table.toString());
+      console.log(`
+${list.length} monitor(s) DOWN`);
+    } catch (err) {
+      handleError(err);
+    }
+  });
+}
+function downAliasCommand(program3) {
+  program3.command("down").description("Show only monitors that are currently DOWN (alias for: monitors down)").option("--json", "Output raw JSON").action(async (opts) => {
+    const config = getConfig();
+    if (!config) requireAuth();
+    try {
+      const client = await createAuthenticatedClient(
+        config.url,
+        config.token
+      );
+      const monitorMap = await client.getMonitorList();
+      client.disconnect();
+      const list = Object.values(monitorMap).filter(
+        (m) => m.heartbeat?.status === 0
+      );
+      if (opts.json) {
+        console.log(JSON.stringify(list, null, 2));
+        return;
+      }
+      if (list.length === 0) {
+        console.log("\u2705 All monitors are UP");
+        return;
+      }
+      const table = createTable([
+        "ID",
+        "Name",
+        "Type",
+        "URL / Host",
+        "Status",
+        "Uptime 24h",
+        "Ping"
+      ]);
+      list.forEach((m) => {
+        const target = m.url ?? (m.hostname ? `${m.hostname}:${m.port}` : "\u2014");
+        table.push([
+          String(m.id),
+          m.name,
+          m.type,
+          target,
+          statusLabel(0),
+          formatUptime(m.uptime),
+          formatPing(m.heartbeat?.ping)
+        ]);
+      });
+      console.log(table.toString());
+      console.log(`
+${list.length} monitor(s) DOWN`);
+    } catch (err) {
+      handleError(err);
+    }
+  });
 }
 
 // src/commands/heartbeat.ts
@@ -30337,6 +30433,7 @@ logoutCommand(program2);
 monitorsCommand(program2);
 heartbeatCommand(program2);
 statusPagesCommand(program2);
+downAliasCommand(program2);
 program2.parse(process.argv);
 /*! Bundled license information:
 

@@ -52,6 +52,10 @@ export interface StatusPage {
 export class KumaClient {
   private socket: Socket;
   private url: string;
+  // Kuma pushes heartbeatList and uptime events immediately on connect (before
+  // getMonitorList is called), so we buffer them for later use.
+  private heartbeatCache: Record<number, Heartbeat> = {};
+  private uptimeCache: Record<string, number> = {};
 
   constructor(url: string) {
     this.url = url;
@@ -60,6 +64,24 @@ export class KumaClient {
       reconnection: false,
       timeout: 10000,
     });
+
+    // Buffer heartbeatList events from the moment the socket is created
+    this.socket.on(
+      "heartbeatList",
+      (monitorId: number, data: Heartbeat[]) => {
+        if (Array.isArray(data) && data.length > 0) {
+          this.heartbeatCache[monitorId] = data[data.length - 1];
+        }
+      }
+    );
+
+    // Buffer uptime events (24h period used for the list view)
+    this.socket.on(
+      "uptime",
+      (monitorId: number, period: string, value: number) => {
+        this.uptimeCache[`${monitorId}_${period}`] = value;
+      }
+    );
   }
 
   /**
@@ -130,56 +152,28 @@ export class KumaClient {
   }
 
   async getMonitorList(): Promise<Record<string, Monitor>> {
-    return new Promise((resolve) => {
-      const monitors: Record<string, Monitor> = {};
-      const heartbeats: Record<number, Heartbeat> = {};
-      const uptimes: Record<string, number> = {};
-      let monitorListReceived = false;
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error("getMonitorList timeout")),
+        10000
+      );
 
-      const mergeAndResolve = () => {
-        // Merge latest heartbeat + uptime into each monitor
-        for (const [idStr, monitor] of Object.entries(monitors)) {
+      // Register monitorList listener BEFORE emitting the request.
+      // The server responds via a "monitorList" push event (not a callback ack).
+      this.socket.once("monitorList", (data: Record<string, Monitor>) => {
+        clearTimeout(timer);
+        // Merge buffered heartbeat + uptime data (captured since connect)
+        for (const [idStr, monitor] of Object.entries(data)) {
           const id = Number(idStr);
-          const hb = heartbeats[id];
+          const hb = this.heartbeatCache[id];
           if (hb) monitor.heartbeat = hb;
-          const up24 = uptimes[`${id}_24`];
+          const up24 = this.uptimeCache[`${id}_24`];
           if (up24 !== undefined) monitor.uptime = up24;
         }
-        resolve(monitors);
-      };
+        resolve(data);
+      });
 
-      // Safety valve — resolve after 3s regardless
-      const safetyTimer = setTimeout(() => mergeAndResolve(), 3000);
-
-      // Kuma pushes heartbeatList per monitor after auth: (monitorId, data[])
-      this.socket.on(
-        "heartbeatList",
-        (monitorId: number, data: Heartbeat[]) => {
-          if (Array.isArray(data) && data.length > 0) {
-            heartbeats[monitorId] = data[data.length - 1];
-          }
-        }
-      );
-
-      // Kuma pushes uptime per monitor after auth: (monitorId, period, value)
-      this.socket.on(
-        "uptime",
-        (monitorId: number, period: string, value: number) => {
-          uptimes[`${monitorId}_${period}`] = value;
-        }
-      );
-
-      // Request the monitor list via callback
-      this.socket.emit(
-        "getMonitorList",
-        (data: Record<string, Monitor>) => {
-          Object.assign(monitors, data);
-          monitorListReceived = true;
-          clearTimeout(safetyTimer);
-          // Give Kuma 1.5 s to push heartbeatList/uptime for all monitors
-          setTimeout(() => mergeAndResolve(), 1500);
-        }
-      );
+      this.socket.emit("getMonitorList");
     });
   }
 
