@@ -5,6 +5,7 @@ import { monitorsCommand } from "./commands/monitors.js";
 import { heartbeatCommand } from "./commands/heartbeat.js";
 import { statusPagesCommand } from "./commands/status-pages.js";
 import { upgradeCommand } from "./commands/upgrade.js";
+import { notificationsCommand } from "./commands/notifications.js";
 import { getConfig, getConfigPath } from "./config.js";
 import chalk from "chalk";
 import { isJsonMode, jsonOut } from "./utils/output.js";
@@ -96,5 +97,6 @@ monitorsCommand(program);
 heartbeatCommand(program);
 statusPagesCommand(program);
 upgradeCommand(program);
+notificationsCommand(program);
 
 program.parse(process.argv);

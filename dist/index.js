@@ -3218,11 +3218,11 @@ Expecting one of '${allowedValues.join("', '")}'`);
        */
       _getOutputContext(contextOptions) {
         contextOptions = contextOptions || {};
-        const error2 = !!contextOptions.error;
+        const error3 = !!contextOptions.error;
         let baseWrite;
         let hasColors;
         let helpWidth;
-        if (error2) {
+        if (error3) {
           baseWrite = (str) => this._outputConfiguration.writeErr(str);
           hasColors = this._outputConfiguration.getErrHasColors();
           helpWidth = this._outputConfiguration.getErrHelpWidth();
@@ -3235,7 +3235,7 @@ Expecting one of '${allowedValues.join("', '")}'`);
           if (!hasColors) str = this._outputConfiguration.stripColor(str);
           return baseWrite(str);
         };
-        return { error: error2, write, hasColors, helpWidth };
+        return { error: error3, write, hasColors, helpWidth };
       }
       /**
        * Output help information for this command.
@@ -4805,13 +4805,13 @@ var require_prompt = __commonJS({
         }
         let result = this.state.error || await this.validate(this.value, this.state);
         if (result !== true) {
-          let error2 = "\n" + this.symbols.pointer + " ";
+          let error3 = "\n" + this.symbols.pointer + " ";
           if (typeof result === "string") {
-            error2 += result.trim();
+            error3 += result.trim();
           } else {
-            error2 += "Invalid input";
+            error3 += "Invalid input";
           }
-          this.state.error = "\n" + this.styles.danger(error2);
+          this.state.error = "\n" + this.styles.danger(error3);
           this.state.submitted = false;
           await this.render();
           await this.alert();
@@ -7184,11 +7184,11 @@ var require_interpolate = __commonJS({
         state.keys = keys;
         state.output = "";
         let validate = async (value2, state2, item, index2) => {
-          let error2 = await isValid(value2, state2, item, index2);
-          if (error2 === false) {
+          let error3 = await isValid(value2, state2, item, index2);
+          if (error3 === false) {
             return "Invalid field " + item.name;
           }
-          return error2;
+          return error3;
         };
         for (let token of tabstops) {
           let value2 = token.value;
@@ -7206,9 +7206,9 @@ var require_interpolate = __commonJS({
             let field = item.field || {};
             let message = field.message || token.inner;
             if (submitted) {
-              let error2 = await validate(state.values[key], state, item, index);
-              if (error2 && typeof error2 === "string" || error2 === false) {
-                state.invalid.set(key, error2);
+              let error3 = await validate(state.values[key], state, item, index);
+              if (error3 && typeof error3 === "string" || error3 === false) {
+                state.invalid.set(key, error3);
                 continue;
               }
               state.invalid.delete(key);
@@ -7394,7 +7394,7 @@ var require_snippet = __commonJS({
         let prompt3 = [prefix, message, separator].filter(Boolean).join(" ");
         this.state.prompt = prompt3;
         let header = await this.header();
-        let error2 = await this.error() || "";
+        let error3 = await this.error() || "";
         let hint = await this.hint() || "";
         let body = submitted ? "" : await this.interpolate(this.state);
         let key = this.state.key = keys[index] || "";
@@ -7403,7 +7403,7 @@ var require_snippet = __commonJS({
         if (input) prompt3 += " " + input;
         if (hint && !input && this.state.completed === 0) prompt3 += " " + hint;
         this.clear(size);
-        let lines = [header, prompt3, body, footer, error2.trim()];
+        let lines = [header, prompt3, body, footer, error3.trim()];
         this.write(lines.filter(Boolean).join(newline));
         this.restore();
       }
@@ -8175,9 +8175,9 @@ var require_XMLHttpRequest = __commonJS({
             throw new Error("XMLHttpRequest: Only GET method is supported");
           }
           if (settings.async) {
-            fs3.readFile(unescape(url2.pathname), function(error2, data2) {
-              if (error2) {
-                self.handleError(error2, error2.errno || -1);
+            fs3.readFile(unescape(url2.pathname), function(error3, data2) {
+              if (error3) {
+                self.handleError(error3, error3.errno || -1);
               } else {
                 self.status = 200;
                 self.responseText = data2.toString("utf8");
@@ -8290,14 +8290,14 @@ var require_XMLHttpRequest = __commonJS({
                 self.responseText = self.response.toString("utf8");
               }
             });
-            response.on("error", function(error2) {
-              self.handleError(error2);
+            response.on("error", function(error3) {
+              self.handleError(error3);
             });
           };
-          var errorHandler = function(error2) {
-            if (request.reusedSocket && error2.code === "ECONNRESET")
+          var errorHandler = function(error3) {
+            if (request.reusedSocket && error3.code === "ECONNRESET")
               return doRequest(options, responseHandler).on("error", errorHandler);
-            self.handleError(error2);
+            self.handleError(error3);
           };
           request = doRequest(options, responseHandler).on("error", errorHandler);
           if (opts.autoUnref) {
@@ -8338,10 +8338,10 @@ var require_XMLHttpRequest = __commonJS({
           }
         }
       };
-      this.handleError = function(error2, status) {
+      this.handleError = function(error3, status) {
         this.status = status || 0;
-        this.statusText = error2;
-        this.responseText = error2.stack;
+        this.statusText = error3;
+        this.responseText = error3.stack;
         errorFlag = true;
         setState(this.DONE);
       };
@@ -8851,14 +8851,14 @@ var require_browser = __commonJS({
         } else {
           exports2.storage.removeItem("debug");
         }
-      } catch (error2) {
+      } catch (error3) {
       }
     }
     function load() {
       let r;
       try {
         r = exports2.storage.getItem("debug") || exports2.storage.getItem("DEBUG");
-      } catch (error2) {
+      } catch (error3) {
       }
       if (!r && typeof process !== "undefined" && "env" in process) {
         r = process.env.DEBUG;
@@ -8868,7 +8868,7 @@ var require_browser = __commonJS({
     function localstorage() {
       try {
         return localStorage;
-      } catch (error2) {
+      } catch (error3) {
       }
     }
     module2.exports = require_common()(exports2);
@@ -8876,8 +8876,8 @@ var require_browser = __commonJS({
     formatters.j = function(v) {
       try {
         return JSON.stringify(v);
-      } catch (error2) {
-        return "[UnexpectedJSONParseError]: " + error2.message;
+      } catch (error3) {
+        return "[UnexpectedJSONParseError]: " + error3.message;
       }
     };
   }
@@ -9098,7 +9098,7 @@ var require_node = __commonJS({
           221
         ];
       }
-    } catch (error2) {
+    } catch (error3) {
     }
     exports2.inspectOpts = Object.keys(process.env).filter((key) => {
       return /^debug_/i.test(key);
@@ -10077,26 +10077,26 @@ var require_receiver = __commonJS({
         }
         const buf = this.consume(2);
         if ((buf[0] & 48) !== 0) {
-          const error2 = this.createError(
+          const error3 = this.createError(
             RangeError,
             "RSV2 and RSV3 must be clear",
             true,
             1002,
             "WS_ERR_UNEXPECTED_RSV_2_3"
           );
-          cb(error2);
+          cb(error3);
           return;
         }
         const compressed = (buf[0] & 64) === 64;
         if (compressed && !this._extensions[PerMessageDeflate.extensionName]) {
-          const error2 = this.createError(
+          const error3 = this.createError(
             RangeError,
             "RSV1 must be clear",
             true,
             1002,
             "WS_ERR_UNEXPECTED_RSV_1"
           );
-          cb(error2);
+          cb(error3);
           return;
         }
         this._fin = (buf[0] & 128) === 128;
@@ -10104,109 +10104,109 @@ var require_receiver = __commonJS({
         this._payloadLength = buf[1] & 127;
         if (this._opcode === 0) {
           if (compressed) {
-            const error2 = this.createError(
+            const error3 = this.createError(
               RangeError,
               "RSV1 must be clear",
               true,
               1002,
               "WS_ERR_UNEXPECTED_RSV_1"
             );
-            cb(error2);
+            cb(error3);
             return;
           }
           if (!this._fragmented) {
-            const error2 = this.createError(
+            const error3 = this.createError(
               RangeError,
               "invalid opcode 0",
               true,
               1002,
               "WS_ERR_INVALID_OPCODE"
             );
-            cb(error2);
+            cb(error3);
             return;
           }
           this._opcode = this._fragmented;
         } else if (this._opcode === 1 || this._opcode === 2) {
           if (this._fragmented) {
-            const error2 = this.createError(
+            const error3 = this.createError(
               RangeError,
               `invalid opcode ${this._opcode}`,
               true,
               1002,
               "WS_ERR_INVALID_OPCODE"
             );
-            cb(error2);
+            cb(error3);
             return;
           }
           this._compressed = compressed;
         } else if (this._opcode > 7 && this._opcode < 11) {
           if (!this._fin) {
-            const error2 = this.createError(
+            const error3 = this.createError(
               RangeError,
               "FIN must be set",
               true,
               1002,
               "WS_ERR_EXPECTED_FIN"
             );
-            cb(error2);
+            cb(error3);
             return;
           }
           if (compressed) {
-            const error2 = this.createError(
+            const error3 = this.createError(
               RangeError,
               "RSV1 must be clear",
               true,
               1002,
               "WS_ERR_UNEXPECTED_RSV_1"
             );
-            cb(error2);
+            cb(error3);
             return;
           }
           if (this._payloadLength > 125 || this._opcode === 8 && this._payloadLength === 1) {
-            const error2 = this.createError(
+            const error3 = this.createError(
               RangeError,
               `invalid payload length ${this._payloadLength}`,
               true,
               1002,
               "WS_ERR_INVALID_CONTROL_PAYLOAD_LENGTH"
             );
-            cb(error2);
+            cb(error3);
             return;
           }
         } else {
-          const error2 = this.createError(
+          const error3 = this.createError(
             RangeError,
             `invalid opcode ${this._opcode}`,
             true,
             1002,
             "WS_ERR_INVALID_OPCODE"
           );
-          cb(error2);
+          cb(error3);
           return;
         }
         if (!this._fin && !this._fragmented) this._fragmented = this._opcode;
         this._masked = (buf[1] & 128) === 128;
         if (this._isServer) {
           if (!this._masked) {
-            const error2 = this.createError(
+            const error3 = this.createError(
               RangeError,
               "MASK must be set",
               true,
               1002,
               "WS_ERR_EXPECTED_MASK"
             );
-            cb(error2);
+            cb(error3);
             return;
           }
         } else if (this._masked) {
-          const error2 = this.createError(
+          const error3 = this.createError(
             RangeError,
             "MASK must be clear",
             true,
             1002,
             "WS_ERR_UNEXPECTED_MASK"
           );
-          cb(error2);
+          cb(error3);
           return;
         }
         if (this._payloadLength === 126) this._state = GET_PAYLOAD_LENGTH_16;
@@ -10241,14 +10241,14 @@ var require_receiver = __commonJS({
         const buf = this.consume(8);
         const num = buf.readUInt32BE(0);
         if (num > Math.pow(2, 53 - 32) - 1) {
-          const error2 = this.createError(
+          const error3 = this.createError(
             RangeError,
             "Unsupported WebSocket frame: payload length > 2^53 - 1",
             false,
             1009,
             "WS_ERR_UNSUPPORTED_DATA_PAYLOAD_LENGTH"
           );
-          cb(error2);
+          cb(error3);
           return;
         }
         this._payloadLength = num * Math.pow(2, 32) + buf.readUInt32BE(4);
@@ -10264,14 +10264,14 @@ var require_receiver = __commonJS({
         if (this._payloadLength && this._opcode < 8) {
           this._totalPayloadLength += this._payloadLength;
           if (this._totalPayloadLength > this._maxPayload && this._maxPayload > 0) {
-            const error2 = this.createError(
+            const error3 = this.createError(
               RangeError,
               "Max payload size exceeded",
               false,
               1009,
               "WS_ERR_UNSUPPORTED_MESSAGE_LENGTH"
             );
-            cb(error2);
+            cb(error3);
             return;
           }
         }
@@ -10338,14 +10338,14 @@ var require_receiver = __commonJS({
           if (buf.length) {
             this._messageLength += buf.length;
             if (this._messageLength > this._maxPayload && this._maxPayload > 0) {
-              const error2 = this.createError(
+              const error3 = this.createError(
                 RangeError,
                 "Max payload size exceeded",
                 false,
                 1009,
                 "WS_ERR_UNSUPPORTED_MESSAGE_LENGTH"
               );
-              cb(error2);
+              cb(error3);
               return;
             }
             this._fragments.push(buf);
@@ -10396,14 +10396,14 @@ var require_receiver = __commonJS({
         } else {
           const buf = concat(fragments, messageLength);
           if (!this._skipUTF8Validation && !isValidUTF8(buf)) {
-            const error2 = this.createError(
+            const error3 = this.createError(
               Error,
               "invalid UTF-8 sequence",
               true,
               1007,
               "WS_ERR_INVALID_UTF8"
             );
-            cb(error2);
+            cb(error3);
             return;
           }
           if (this._state === INFLATING || this._allowSynchronousEvents) {
@@ -10435,14 +10435,14 @@ var require_receiver = __commonJS({
           } else {
             const code = data.readUInt16BE(0);
             if (!isValidStatusCode(code)) {
-              const error2 = this.createError(
+              const error3 = this.createError(
                 RangeError,
                 `invalid status code ${code}`,
                 true,
                 1002,
                 "WS_ERR_INVALID_CLOSE_CODE"
               );
-              cb(error2);
+              cb(error3);
               return;
             }
             const buf = new FastBuffer(
@@ -10451,14 +10451,14 @@ var require_receiver = __commonJS({
               data.length - 2
             );
             if (!this._skipUTF8Validation && !isValidUTF8(buf)) {
-              const error2 = this.createError(
+              const error3 = this.createError(
                 Error,
                 "invalid UTF-8 sequence",
                 true,
                 1007,
                 "WS_ERR_INVALID_UTF8"
               );
-              cb(error2);
+              cb(error3);
               return;
             }
             this._loop = false;
@@ -11167,10 +11167,10 @@ var require_event_target = __commonJS({
             callListener(handler, this, event);
           };
         } else if (type === "error") {
-          wrapper = function onError(error2) {
+          wrapper = function onError(error3) {
             const event = new ErrorEvent("error", {
-              error: error2,
-              message: error2.message
+              error: error3,
+              message: error3.message
             });
             event[kTarget] = this;
             callListener(handler, this, event);
@@ -12295,7 +12295,7 @@ var require_stream = __commonJS({
         const data = !isBinary2 && duplex._readableState.objectMode ? msg.toString() : msg;
         if (!duplex.push(data)) ws.pause();
       });
-      ws.once("error", function error2(err) {
+      ws.once("error", function error3(err) {
         if (duplex.destroyed) return;
         terminateOnDestroy = false;
         duplex.destroy(err);
@@ -12311,7 +12311,7 @@ var require_stream = __commonJS({
           return;
         }
         let called = false;
-        ws.once("error", function error2(err2) {
+        ws.once("error", function error3(err2) {
           called = true;
           callback(err2);
         });
@@ -13233,9 +13233,9 @@ var require_codegen = __commonJS({
       }
     };
     var Throw = class extends Node {
-      constructor(error2) {
+      constructor(error3) {
         super();
-        this.error = error2;
+        this.error = error3;
       }
       render({ _n }) {
         return `throw ${this.error};` + _n;
@@ -13472,9 +13472,9 @@ var require_codegen = __commonJS({
       }
     };
     var Catch = class extends BlockNode {
-      constructor(error2) {
+      constructor(error3) {
         super();
-        this.error = error2;
+        this.error = error3;
       }
       render(opts) {
         return `catch(${this.error})` + super.render(opts);
@@ -13665,9 +13665,9 @@ var require_codegen = __commonJS({
         this._blockNode(node);
         this.code(tryBody);
         if (catchCode) {
-          const error2 = this.name("e");
-          this._currNode = node.catch = new Catch(error2);
-          catchCode(error2);
+          const error3 = this.name("e");
+          this._currNode = node.catch = new Catch(error3);
+          catchCode(error3);
         }
         if (finallyCode) {
           this._currNode = node.finally = new Finally();
@@ -13676,8 +13676,8 @@ var require_codegen = __commonJS({
         return this._endBlockNode(Catch, Finally);
       }
       // `throw` statement
-      throw(error2) {
-        return this._leafNode(new Throw(error2));
+      throw(error3) {
+        return this._leafNode(new Throw(error3));
       }
       // start self-balancing block
       block(body, nodeCount) {
@@ -14033,10 +14033,10 @@ var require_errors = __commonJS({
     exports2.keyword$DataError = {
       message: ({ keyword, schemaType }) => schemaType ? (0, codegen_1.str)`"${keyword}" keyword must be ${schemaType} ($data)` : (0, codegen_1.str)`"${keyword}" keyword is invalid ($data)`
     };
-    function reportError(cxt, error2 = exports2.keywordError, errorPaths, overrideAllErrors) {
+    function reportError(cxt, error3 = exports2.keywordError, errorPaths, overrideAllErrors) {
       const { it } = cxt;
       const { gen, compositeRule, allErrors } = it;
-      const errObj = errorObjectCode(cxt, error2, errorPaths);
+      const errObj = errorObjectCode(cxt, error3, errorPaths);
       if (overrideAllErrors !== null && overrideAllErrors !== void 0 ? overrideAllErrors : compositeRule || allErrors) {
         addError(gen, errObj);
       } else {
@@ -14044,10 +14044,10 @@ var require_errors = __commonJS({
       }
     }
     exports2.reportError = reportError;
-    function reportExtraError(cxt, error2 = exports2.keywordError, errorPaths) {
+    function reportExtraError(cxt, error3 = exports2.keywordError, errorPaths) {
       const { it } = cxt;
       const { gen, compositeRule, allErrors } = it;
-      const errObj = errorObjectCode(cxt, error2, errorPaths);
+      const errObj = errorObjectCode(cxt, error3, errorPaths);
       addError(gen, errObj);
       if (!(compositeRule || allErrors)) {
         returnErrors(it, names_1.default.vErrors);
@@ -14098,19 +14098,19 @@ var require_errors = __commonJS({
       schema: new codegen_1.Name("schema"),
       parentSchema: new codegen_1.Name("parentSchema")
     };
-    function errorObjectCode(cxt, error2, errorPaths) {
+    function errorObjectCode(cxt, error3, errorPaths) {
       const { createErrors } = cxt.it;
       if (createErrors === false)
         return (0, codegen_1._)`{}`;
-      return errorObject(cxt, error2, errorPaths);
+      return errorObject(cxt, error3, errorPaths);
     }
-    function errorObject(cxt, error2, errorPaths = {}) {
+    function errorObject(cxt, error3, errorPaths = {}) {
       const { gen, it } = cxt;
       const keyValues = [
         errorInstancePath(it, errorPaths),
         errorSchemaPath(cxt, errorPaths)
       ];
-      extraErrorProps(cxt, error2, keyValues);
+      extraErrorProps(cxt, error3, keyValues);
       return gen.object(...keyValues);
     }
     function errorInstancePath({ errorPath }, { instancePath }) {
@@ -17378,7 +17378,7 @@ var require_limitNumber = __commonJS({
       exclusiveMaximum: { okStr: "<", ok: ops.LT, fail: ops.GTE },
       exclusiveMinimum: { okStr: ">", ok: ops.GT, fail: ops.LTE }
     };
-    var error2 = {
+    var error3 = {
       message: ({ keyword, schemaCode }) => (0, codegen_1.str)`must be ${KWDs[keyword].okStr} ${schemaCode}`,
       params: ({ keyword, schemaCode }) => (0, codegen_1._)`{comparison: ${KWDs[keyword].okStr}, limit: ${schemaCode}}`
     };
@@ -17387,7 +17387,7 @@ var require_limitNumber = __commonJS({
       type: "number",
       schemaType: "number",
       $data: true,
-      error: error2,
+      error: error3,
       code(cxt) {
         const { keyword, data, schemaCode } = cxt;
         cxt.fail$data((0, codegen_1._)`${data} ${KWDs[keyword].fail} ${schemaCode} || isNaN(${data})`);
@@ -17403,7 +17403,7 @@ var require_multipleOf = __commonJS({
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var codegen_1 = require_codegen();
-    var error2 = {
+    var error3 = {
       message: ({ schemaCode }) => (0, codegen_1.str)`must be multiple of ${schemaCode}`,
       params: ({ schemaCode }) => (0, codegen_1._)`{multipleOf: ${schemaCode}}`
     };
@@ -17412,7 +17412,7 @@ var require_multipleOf = __commonJS({
       type: "number",
       schemaType: "number",
       $data: true,
-      error: error2,
+      error: error3,
       code(cxt) {
         const { gen, data, schemaCode, it } = cxt;
         const prec = it.opts.multipleOfPrecision;
@@ -17459,7 +17459,7 @@ var require_limitLength = __commonJS({
     var codegen_1 = require_codegen();
     var util_1 = require_util();
     var ucs2length_1 = require_ucs2length();
-    var error2 = {
+    var error3 = {
       message({ keyword, schemaCode }) {
         const comp = keyword === "maxLength" ? "more" : "fewer";
         return (0, codegen_1.str)`must NOT have ${comp} than ${schemaCode} characters`;
@@ -17471,7 +17471,7 @@ var require_limitLength = __commonJS({
       type: "string",
       schemaType: "number",
       $data: true,
-      error: error2,
+      error: error3,
       code(cxt) {
         const { keyword, data, schemaCode, it } = cxt;
         const op = keyword === "maxLength" ? codegen_1.operators.GT : codegen_1.operators.LT;
@@ -17491,7 +17491,7 @@ var require_pattern = __commonJS({
     var code_1 = require_code2();
     var util_1 = require_util();
     var codegen_1 = require_codegen();
-    var error2 = {
+    var error3 = {
       message: ({ schemaCode }) => (0, codegen_1.str)`must match pattern "${schemaCode}"`,
       params: ({ schemaCode }) => (0, codegen_1._)`{pattern: ${schemaCode}}`
     };
@@ -17500,7 +17500,7 @@ var require_pattern = __commonJS({
       type: "string",
       schemaType: "string",
       $data: true,
-      error: error2,
+      error: error3,
       code(cxt) {
         const { gen, data, $data, schema, schemaCode, it } = cxt;
         const u = it.opts.unicodeRegExp ? "u" : "";
@@ -17526,7 +17526,7 @@ var require_limitProperties = __commonJS({
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var codegen_1 = require_codegen();
-    var error2 = {
+    var error3 = {
       message({ keyword, schemaCode }) {
         const comp = keyword === "maxProperties" ? "more" : "fewer";
         return (0, codegen_1.str)`must NOT have ${comp} than ${schemaCode} properties`;
@@ -17538,7 +17538,7 @@ var require_limitProperties = __commonJS({
       type: "object",
       schemaType: "number",
       $data: true,
-      error: error2,
+      error: error3,
       code(cxt) {
         const { keyword, data, schemaCode } = cxt;
         const op = keyword === "maxProperties" ? codegen_1.operators.GT : codegen_1.operators.LT;
@@ -17557,7 +17557,7 @@ var require_required = __commonJS({
     var code_1 = require_code2();
     var codegen_1 = require_codegen();
     var util_1 = require_util();
-    var error2 = {
+    var error3 = {
       message: ({ params: { missingProperty } }) => (0, codegen_1.str)`must have required property '${missingProperty}'`,
       params: ({ params: { missingProperty } }) => (0, codegen_1._)`{missingProperty: ${missingProperty}}`
     };
@@ -17566,7 +17566,7 @@ var require_required = __commonJS({
       type: "object",
       schemaType: "array",
       $data: true,
-      error: error2,
+      error: error3,
       code(cxt) {
         const { gen, schema, schemaCode, data, $data, it } = cxt;
         const { opts } = it;
@@ -17637,7 +17637,7 @@ var require_limitItems = __commonJS({
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var codegen_1 = require_codegen();
-    var error2 = {
+    var error3 = {
       message({ keyword, schemaCode }) {
         const comp = keyword === "maxItems" ? "more" : "fewer";
         return (0, codegen_1.str)`must NOT have ${comp} than ${schemaCode} items`;
@@ -17649,7 +17649,7 @@ var require_limitItems = __commonJS({
       type: "array",
       schemaType: "number",
       $data: true,
-      error: error2,
+      error: error3,
       code(cxt) {
         const { keyword, data, schemaCode } = cxt;
         const op = keyword === "maxItems" ? codegen_1.operators.GT : codegen_1.operators.LT;
@@ -17680,7 +17680,7 @@ var require_uniqueItems = __commonJS({
     var codegen_1 = require_codegen();
     var util_1 = require_util();
     var equal_1 = require_equal();
-    var error2 = {
+    var error3 = {
       message: ({ params: { i, j } }) => (0, codegen_1.str)`must NOT have duplicate items (items ## ${j} and ${i} are identical)`,
       params: ({ params: { i, j } }) => (0, codegen_1._)`{i: ${i}, j: ${j}}`
     };
@@ -17689,7 +17689,7 @@ var require_uniqueItems = __commonJS({
       type: "array",
       schemaType: "boolean",
       $data: true,
-      error: error2,
+      error: error3,
       code(cxt) {
         const { gen, data, $data, schema, parentSchema, schemaCode, it } = cxt;
         if (!$data && !schema)
@@ -17746,14 +17746,14 @@ var require_const = __commonJS({
     var codegen_1 = require_codegen();
     var util_1 = require_util();
     var equal_1 = require_equal();
-    var error2 = {
+    var error3 = {
       message: "must be equal to constant",
       params: ({ schemaCode }) => (0, codegen_1._)`{allowedValue: ${schemaCode}}`
     };
     var def = {
       keyword: "const",
       $data: true,
-      error: error2,
+      error: error3,
       code(cxt) {
         const { gen, data, $data, schemaCode, schema } = cxt;
         if ($data || schema && typeof schema == "object") {
@@ -17775,7 +17775,7 @@ var require_enum = __commonJS({
     var codegen_1 = require_codegen();
     var util_1 = require_util();
     var equal_1 = require_equal();
-    var error2 = {
+    var error3 = {
       message: "must be equal to one of the allowed values",
       params: ({ schemaCode }) => (0, codegen_1._)`{allowedValues: ${schemaCode}}`
     };
@@ -17783,7 +17783,7 @@ var require_enum = __commonJS({
       keyword: "enum",
       schemaType: "array",
       $data: true,
-      error: error2,
+      error: error3,
       code(cxt) {
         const { gen, data, $data, schema, schemaCode, it } = cxt;
         if (!$data && schema.length === 0)
@@ -17862,7 +17862,7 @@ var require_additionalItems = __commonJS({
     exports2.validateAdditionalItems = void 0;
     var codegen_1 = require_codegen();
     var util_1 = require_util();
-    var error2 = {
+    var error3 = {
       message: ({ params: { len } }) => (0, codegen_1.str)`must NOT have more than ${len} items`,
       params: ({ params: { len } }) => (0, codegen_1._)`{limit: ${len}}`
     };
@@ -17871,7 +17871,7 @@ var require_additionalItems = __commonJS({
       type: "array",
       schemaType: ["boolean", "object"],
       before: "uniqueItems",
-      error: error2,
+      error: error3,
       code(cxt) {
         const { parentSchema, it } = cxt;
         const { items } = parentSchema;
@@ -17990,7 +17990,7 @@ var require_items2020 = __commonJS({
     var util_1 = require_util();
     var code_1 = require_code2();
     var additionalItems_1 = require_additionalItems();
-    var error2 = {
+    var error3 = {
       message: ({ params: { len } }) => (0, codegen_1.str)`must NOT have more than ${len} items`,
       params: ({ params: { len } }) => (0, codegen_1._)`{limit: ${len}}`
     };
@@ -17999,7 +17999,7 @@ var require_items2020 = __commonJS({
       type: "array",
       schemaType: ["object", "boolean"],
       before: "uniqueItems",
-      error: error2,
+      error: error3,
       code(cxt) {
         const { schema, parentSchema, it } = cxt;
         const { prefixItems } = parentSchema;
@@ -18023,7 +18023,7 @@ var require_contains = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     var codegen_1 = require_codegen();
     var util_1 = require_util();
-    var error2 = {
+    var error3 = {
       message: ({ params: { min, max } }) => max === void 0 ? (0, codegen_1.str)`must contain at least ${min} valid item(s)` : (0, codegen_1.str)`must contain at least ${min} and no more than ${max} valid item(s)`,
       params: ({ params: { min, max } }) => max === void 0 ? (0, codegen_1._)`{minContains: ${min}}` : (0, codegen_1._)`{minContains: ${min}, maxContains: ${max}}`
     };
@@ -18033,7 +18033,7 @@ var require_contains = __commonJS({
       schemaType: ["object", "boolean"],
       before: "uniqueItems",
       trackErrors: true,
-      error: error2,
+      error: error3,
       code(cxt) {
         const { gen, schema, parentSchema, data, it } = cxt;
         let min;
@@ -18211,7 +18211,7 @@ var require_propertyNames = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     var codegen_1 = require_codegen();
     var util_1 = require_util();
-    var error2 = {
+    var error3 = {
       message: "property name must be valid",
       params: ({ params }) => (0, codegen_1._)`{propertyName: ${params.propertyName}}`
     };
@@ -18219,7 +18219,7 @@ var require_propertyNames = __commonJS({
       keyword: "propertyNames",
       type: "object",
       schemaType: ["object", "boolean"],
-      error: error2,
+      error: error3,
       code(cxt) {
         const { gen, schema, data, it } = cxt;
         if ((0, util_1.alwaysValidSchema)(it, schema))
@@ -18256,7 +18256,7 @@ var require_additionalProperties = __commonJS({
     var codegen_1 = require_codegen();
     var names_1 = require_names();
     var util_1 = require_util();
-    var error2 = {
+    var error3 = {
       message: "must NOT have additional properties",
       params: ({ params }) => (0, codegen_1._)`{additionalProperty: ${params.additionalProperty}}`
     };
@@ -18266,7 +18266,7 @@ var require_additionalProperties = __commonJS({
       schemaType: ["boolean", "object"],
       allowUndefined: true,
       trackErrors: true,
-      error: error2,
+      error: error3,
       code(cxt) {
         const { gen, schema, parentSchema, data, errsCount, it } = cxt;
         if (!errsCount)
@@ -18540,7 +18540,7 @@ var require_oneOf = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     var codegen_1 = require_codegen();
     var util_1 = require_util();
-    var error2 = {
+    var error3 = {
       message: "must match exactly one schema in oneOf",
       params: ({ params }) => (0, codegen_1._)`{passingSchemas: ${params.passing}}`
     };
@@ -18548,7 +18548,7 @@ var require_oneOf = __commonJS({
       keyword: "oneOf",
       schemaType: "array",
       trackErrors: true,
-      error: error2,
+      error: error3,
       code(cxt) {
         const { gen, schema, parentSchema, it } = cxt;
         if (!Array.isArray(schema))
@@ -18625,7 +18625,7 @@ var require_if = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     var codegen_1 = require_codegen();
     var util_1 = require_util();
-    var error2 = {
+    var error3 = {
       message: ({ params }) => (0, codegen_1.str)`must match "${params.ifClause}" schema`,
       params: ({ params }) => (0, codegen_1._)`{failingKeyword: ${params.ifClause}}`
     };
@@ -18633,7 +18633,7 @@ var require_if = __commonJS({
       keyword: "if",
       schemaType: ["object", "boolean"],
       trackErrors: true,
-      error: error2,
+      error: error3,
       code(cxt) {
         const { gen, parentSchema, it } = cxt;
         if (parentSchema.then === void 0 && parentSchema.else === void 0) {
@@ -18958,7 +18958,7 @@ var require_unevaluatedProperties = __commonJS({
     var codegen_1 = require_codegen();
     var util_1 = require_util();
     var names_1 = require_names();
-    var error2 = {
+    var error3 = {
       message: "must NOT have unevaluated properties",
       params: ({ params }) => (0, codegen_1._)`{unevaluatedProperty: ${params.unevaluatedProperty}}`
     };
@@ -18967,7 +18967,7 @@ var require_unevaluatedProperties = __commonJS({
       type: "object",
       schemaType: ["boolean", "object"],
       trackErrors: true,
-      error: error2,
+      error: error3,
       code(cxt) {
         const { gen, schema, data, errsCount, it } = cxt;
         if (!errsCount)
@@ -19023,7 +19023,7 @@ var require_unevaluatedItems = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     var codegen_1 = require_codegen();
     var util_1 = require_util();
-    var error2 = {
+    var error3 = {
       message: ({ params: { len } }) => (0, codegen_1.str)`must NOT have more than ${len} items`,
       params: ({ params: { len } }) => (0, codegen_1._)`{limit: ${len}}`
     };
@@ -19031,7 +19031,7 @@ var require_unevaluatedItems = __commonJS({
       keyword: "unevaluatedItems",
       type: "array",
       schemaType: ["boolean", "object"],
-      error: error2,
+      error: error3,
       code(cxt) {
         const { gen, schema, data, it } = cxt;
         const items = it.items || 0;
@@ -19078,7 +19078,7 @@ var require_format = __commonJS({
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var codegen_1 = require_codegen();
-    var error2 = {
+    var error3 = {
       message: ({ schemaCode }) => (0, codegen_1.str)`must match format "${schemaCode}"`,
       params: ({ schemaCode }) => (0, codegen_1._)`{format: ${schemaCode}}`
     };
@@ -19087,7 +19087,7 @@ var require_format = __commonJS({
       type: ["number", "string"],
       schemaType: "string",
       $data: true,
-      error: error2,
+      error: error3,
       code(cxt, ruleType) {
         const { gen, data, $data, schema, schemaCode, it } = cxt;
         const { opts, errSchemaPath, schemaEnv, self } = it;
@@ -19248,7 +19248,7 @@ var require_discriminator = __commonJS({
     var compile_1 = require_compile();
     var ref_error_1 = require_ref_error();
     var util_1 = require_util();
-    var error2 = {
+    var error3 = {
       message: ({ params: { discrError, tagName } }) => discrError === types_1.DiscrError.Tag ? `tag "${tagName}" must be string` : `value of tag "${tagName}" must be in oneOf`,
       params: ({ params: { discrError, tag, tagName } }) => (0, codegen_1._)`{error: ${discrError}, tag: ${tagName}, tagValue: ${tag}}`
     };
@@ -19256,7 +19256,7 @@ var require_discriminator = __commonJS({
       keyword: "discriminator",
       type: "object",
       schemaType: "object",
-      error: error2,
+      error: error3,
       code(cxt) {
         const { gen, data, schema, parentSchema, it } = cxt;
         const { oneOf } = parentSchema;
@@ -20287,7 +20287,7 @@ var require_limit = __commonJS({
       formatExclusiveMaximum: { okStr: "<", ok: ops.LT, fail: ops.GTE },
       formatExclusiveMinimum: { okStr: ">", ok: ops.GT, fail: ops.LTE }
     };
-    var error2 = {
+    var error3 = {
       message: ({ keyword, schemaCode }) => (0, codegen_1.str)`should be ${KWDs[keyword].okStr} ${schemaCode}`,
       params: ({ keyword, schemaCode }) => (0, codegen_1._)`{comparison: ${KWDs[keyword].okStr}, limit: ${schemaCode}}`
     };
@@ -20296,7 +20296,7 @@ var require_limit = __commonJS({
       type: "string",
       schemaType: "string",
       $data: true,
-      error: error2,
+      error: error3,
       code(cxt) {
         const { gen, data, schemaCode, keyword, it } = cxt;
         const { opts, self } = it;
@@ -25921,11 +25921,11 @@ var SocketWithUpgrade = class extends SocketWithoutUpgrade {
       transport = null;
     }
     const onerror = (err) => {
-      const error2 = new Error("probe error: " + err);
-      error2.transport = transport.name;
+      const error3 = new Error("probe error: " + err);
+      error3.transport = transport.name;
       freezeTransport();
       debug6('probe transport "%s" failed because of error: %s', name, err);
-      this.emitReserved("upgradeError", error2);
+      this.emitReserved("upgradeError", error3);
     };
     function onTransportClose() {
       onerror("transport closed");
@@ -27696,6 +27696,8 @@ var KumaClient = class {
     this.uptimeCache = {};
     // BUG-02 fix: buffer statusPageList pushed by Kuma during afterLogin
     this.statusPageCache = null;
+    // Buffer notificationList pushed by Kuma during afterLogin
+    this.notificationCache = null;
     this.url = url2;
     this.socket = lookup(url2, {
       transports: ["websocket"],
@@ -27718,6 +27720,9 @@ var KumaClient = class {
     );
     this.socket.on("statusPageList", (data) => {
       this.statusPageCache = data;
+    });
+    this.socket.on("notificationList", (data) => {
+      this.notificationCache = Array.isArray(data) ? data : [];
     });
   }
   /**
@@ -27961,6 +27966,110 @@ var KumaClient = class {
         this.statusPageCache = data;
         resolve(data);
       });
+    });
+  }
+  // ---------------------------------------------------------------------------
+  // Notifications
+  // ---------------------------------------------------------------------------
+  /**
+   * Return the notification list pushed by Kuma after login.
+   * Falls back to a short waitFor if the push hasn't arrived yet.
+   */
+  async getNotificationList() {
+    if (this.notificationCache !== null) {
+      return this.notificationCache;
+    }
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => resolve([]), 5e3);
+      this.socket.once("notificationList", (data) => {
+        clearTimeout(timer);
+        const list = Array.isArray(data) ? data : [];
+        this.notificationCache = list;
+        resolve(list);
+      });
+    });
+  }
+  /**
+   * Create a new notification channel, or update one if id is provided.
+   * Returns the id of the created/updated notification.
+   *
+   * Server event: addNotification(notification, id|null, callback)
+   * callback: { ok: boolean, id?: number, msg?: string }
+   */
+  async addNotification(payload, id = null) {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error("addNotification timeout")),
+        1e4
+      );
+      this.socket.emit(
+        "addNotification",
+        payload,
+        id,
+        (result) => {
+          clearTimeout(timer);
+          if (!result.ok) {
+            reject(new Error(result.msg ?? "Failed to create notification"));
+            return;
+          }
+          resolve(result.id);
+        }
+      );
+    });
+  }
+  /**
+   * Delete a notification channel by id.
+   */
+  async deleteNotification(id) {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error("deleteNotification timeout")),
+        1e4
+      );
+      this.socket.emit(
+        "deleteNotification",
+        id,
+        (result) => {
+          clearTimeout(timer);
+          if (!result.ok) {
+            reject(new Error(result.msg ?? "Failed to delete notification"));
+            return;
+          }
+          resolve();
+        }
+      );
+    });
+  }
+  /**
+   * Assign a notification to a monitor.
+   * Uses addMonitorTag-style approach: sends the notificationIDList via
+   * the `editMonitor` event with the full monitor object + updated notificationIDList.
+   * `notificationIDList` is { [notifId]: true } — Kuma's internal format.
+   */
+  async setMonitorNotification(monitorId, notificationId, enabled, monitorMap) {
+    const existing = monitorMap[String(monitorId)];
+    if (!existing) {
+      throw new Error(`Monitor ${monitorId} not found`);
+    }
+    const notifIdList = {};
+    notifIdList[String(notificationId)] = enabled;
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error("setMonitorNotification timeout")),
+        1e4
+      );
+      this.socket.emit(
+        "editMonitor",
+        { ...existing, id: monitorId, notificationIDList: notifIdList },
+        (result) => {
+          clearTimeout(timer);
+          if (!result.ok) {
+            reject(new Error(result.msg ?? "Failed to update monitor notification"));
+            return;
+          }
+          resolve();
+        }
+      );
     });
   }
   disconnect() {
@@ -28328,8 +28437,8 @@ var attemptifySync = (fn, options) => {
   return function attemptified(...args) {
     try {
       return fn.apply(void 0, args);
-    } catch (error2) {
-      return onError(error2);
+    } catch (error3) {
+      return onError(error3);
     }
   };
 };
@@ -28346,11 +28455,11 @@ var retryifyAsync = (fn, options) => {
     const interval = options2.interval ?? RETRY_INTERVAL;
     const timestamp = Date.now() + timeout;
     return function attempt(...args) {
-      return fn.apply(void 0, args).catch((error2) => {
-        if (!isRetriable(error2))
-          throw error2;
+      return fn.apply(void 0, args).catch((error3) => {
+        if (!isRetriable(error3))
+          throw error3;
         if (Date.now() >= timestamp)
-          throw error2;
+          throw error3;
         const delay = Math.round(interval * Math.random());
         if (delay > 0) {
           const delayPromise = new Promise((resolve) => setTimeout(resolve, delay));
@@ -28374,11 +28483,11 @@ var retryifySync = (fn, options) => {
       while (true) {
         try {
           return fn.apply(void 0, args);
-        } catch (error2) {
-          if (!isRetriable(error2))
-            throw error2;
+        } catch (error3) {
+          if (!isRetriable(error3))
+            throw error3;
           if (Date.now() >= timestamp)
-            throw error2;
+            throw error3;
           continue;
         }
       }
@@ -28393,33 +28502,33 @@ var import_node_process2 = __toESM(require("process"), 1);
 // node_modules/stubborn-fs/dist/handlers.js
 var Handlers = {
   /* API */
-  isChangeErrorOk: (error2) => {
-    if (!Handlers.isNodeError(error2))
+  isChangeErrorOk: (error3) => {
+    if (!Handlers.isNodeError(error3))
       return false;
-    const { code } = error2;
+    const { code } = error3;
     if (code === "ENOSYS")
       return true;
     if (!IS_USER_ROOT && (code === "EINVAL" || code === "EPERM"))
       return true;
     return false;
   },
-  isNodeError: (error2) => {
-    return error2 instanceof Error;
+  isNodeError: (error3) => {
+    return error3 instanceof Error;
   },
-  isRetriableError: (error2) => {
-    if (!Handlers.isNodeError(error2))
+  isRetriableError: (error3) => {
+    if (!Handlers.isNodeError(error3))
       return false;
-    const { code } = error2;
+    const { code } = error3;
     if (code === "EMFILE" || code === "ENFILE" || code === "EAGAIN" || code === "EBUSY" || code === "EACCESS" || code === "EACCES" || code === "EACCS" || code === "EPERM")
       return true;
     return false;
   },
-  onChangeError: (error2) => {
-    if (!Handlers.isNodeError(error2))
-      throw error2;
-    if (Handlers.isChangeErrorOk(error2))
+  onChangeError: (error3) => {
+    if (!Handlers.isNodeError(error3))
+      throw error3;
+    if (Handlers.isChangeErrorOk(error3))
       return;
-    throw error2;
+    throw error3;
   }
 };
 var handlers_default = Handlers;
@@ -28686,11 +28795,11 @@ function writeFileSync(filePath, data, options = DEFAULT_WRITE_OPTIONS) {
     }
     try {
       dist_default.retry.renameSync(retryOptions)(tempPath, filePath);
-    } catch (error2) {
-      if (!isException(error2))
-        throw error2;
-      if (error2.code !== "ENAMETOOLONG")
-        throw error2;
+    } catch (error3) {
+      if (!isException(error3))
+        throw error3;
+      if (error3.code !== "ENAMETOOLONG")
+        throw error3;
       dist_default.retry.renameSync(retryOptions)(tempPath, temp_default.truncate(filePath));
     }
     tempDisposer();
@@ -29088,13 +29197,13 @@ var Conf = class {
         return Object.assign(createPlainObject(), deserializedData);
       };
       return parseStore(dataString);
-    } catch (error2) {
-      if (error2?.code === "ENOENT") {
+    } catch (error3) {
+      if (error3?.code === "ENOENT") {
         this._ensureDirectory();
         return createPlainObject();
       }
       if (this.#options.clearInvalidConfig) {
-        const errorInstance = error2;
+        const errorInstance = error3;
         if (errorInstance.name === "SyntaxError") {
           return createPlainObject();
         }
@@ -29105,7 +29214,7 @@ var Conf = class {
           return createPlainObject();
         }
       }
-      throw error2;
+      throw error3;
     }
   }
   set store(value2) {
@@ -29269,12 +29378,12 @@ var Conf = class {
     } else {
       try {
         writeFileSync(this.path, data, { mode: this.#options.configFileMode });
-      } catch (error2) {
-        if (error2?.code === "EXDEV") {
+      } catch (error3) {
+        if (error3?.code === "EXDEV") {
           import_node_fs3.default.writeFileSync(this.path, data, { mode: this.#options.configFileMode });
           return;
         }
-        throw error2;
+        throw error3;
       }
     }
   }
@@ -29328,9 +29437,9 @@ var Conf = class {
         this._set(MIGRATION_KEY, version);
         previousMigratedVersion = version;
         storeBackup = structuredClone(this.store);
-      } catch (error2) {
+      } catch (error3) {
         this.store = storeBackup;
-        const errorMessage = error2 instanceof Error ? error2.message : String(error2);
+        const errorMessage = error3 instanceof Error ? error3.message : String(error3);
         throw new Error(`Something went wrong during the migration! Changes applied to the store until this failed migration will be restored. ${errorMessage}`);
       }
     }
@@ -30575,6 +30684,48 @@ ${source_default.dim("Examples:")}
       handleError(err, opts);
     }
   });
+  monitors.command("set-notification <id>").description("Assign or remove a notification channel from a monitor").requiredOption("--notification-id <nid>", "ID of the notification channel to assign").option("--remove", "Remove the notification instead of assigning it").option("--json", "Output as JSON ({ ok, data })").addHelpText(
+    "after",
+    `
+${source_default.dim("Examples:")}
+  ${source_default.cyan("kuma monitors set-notification 42 --notification-id 3")}
+  ${source_default.cyan("kuma monitors set-notification 42 --notification-id 3 --remove")}
+  ${source_default.cyan("kuma monitors set-notification 42 --notification-id 3 --json")}
+
+${source_default.dim("Bulk assign via pipe:")}
+  ${source_default.cyan("kuma monitors list --tag Production --json | jq '.data[].id' | xargs -I{} kuma monitors set-notification {} --notification-id 3")}
+`
+  ).action(async (id, opts) => {
+    const config = getConfig();
+    if (!config) requireAuth(opts);
+    const json = isJsonMode(opts);
+    const monitorId = parseInt(id, 10);
+    const notifId = parseInt(opts.notificationId, 10);
+    if (isNaN(monitorId)) {
+      handleError(new Error(`Invalid monitor ID: ${id}`), opts);
+    }
+    if (isNaN(notifId)) {
+      handleError(new Error(`Invalid notification ID: ${opts.notificationId}`), opts);
+    }
+    try {
+      const client = await createAuthenticatedClient(config.url, config.token);
+      const monitorMap = await client.getMonitorList();
+      await client.setMonitorNotification(
+        monitorId,
+        notifId,
+        !opts.remove,
+        monitorMap
+      );
+      client.disconnect();
+      const action = opts.remove ? "removed from" : "assigned to";
+      if (json) {
+        jsonOut({ monitorId, notificationId: notifId, action: opts.remove ? "removed" : "assigned" });
+      }
+      success(`Notification ${notifId} ${action} monitor ${monitorId}`);
+    } catch (err) {
+      handleError(err, opts);
+    }
+  });
 }
 
 // src/commands/heartbeat.ts
@@ -30811,6 +30962,189 @@ ${source_default.bold(`Upgrading kuma-cli`)} ${source_default.dim(`v${current}`)
   });
 }
 
+// src/commands/notifications.ts
+function notificationsCommand(program3) {
+  const notifications = program3.command("notifications").description("Manage notification channels (Discord, Telegram, webhook, ...)").addHelpText(
+    "after",
+    `
+${source_default.dim("Subcommands:")}
+  ${source_default.cyan("notifications list")}                     List all notification channels
+  ${source_default.cyan("notifications create --type discord ...")} Create a new notification channel
+  ${source_default.cyan("notifications delete <id>")}              Delete a notification channel
+
+${source_default.dim("Run")} ${source_default.cyan("kuma notifications <subcommand> --help")} ${source_default.dim("for examples.")}
+`
+  );
+  notifications.command("list").description("List all configured notification channels with their IDs and types").option("--json", "Output as JSON ({ ok, data })").addHelpText(
+    "after",
+    `
+${source_default.dim("Examples:")}
+  ${source_default.cyan("kuma notifications list")}
+  ${source_default.cyan("kuma notifications list --json")}
+  ${source_default.cyan("kuma notifications list --json | jq '.data[] | {id, name}'")}
+`
+  ).action(async (opts) => {
+    const config = getConfig();
+    if (!config) requireAuth(opts);
+    const json = isJsonMode(opts);
+    try {
+      const client = await createAuthenticatedClient(config.url, config.token);
+      const list = await client.getNotificationList();
+      client.disconnect();
+      if (json) {
+        const enriched = list.map((n) => {
+          try {
+            const parsed = JSON.parse(n.config);
+            return { ...n, config: parsed };
+          } catch {
+            return n;
+          }
+        });
+        jsonOut(enriched);
+      }
+      if (list.length === 0) {
+        console.log("No notification channels configured.");
+        return;
+      }
+      const table = createTable(["ID", "Name", "Type", "Default", "Active"]);
+      list.forEach((n) => {
+        let type = "\u2014";
+        try {
+          const parsed = JSON.parse(n.config);
+          type = parsed.type ?? "\u2014";
+        } catch {
+        }
+        table.push([
+          String(n.id),
+          n.name,
+          type,
+          n.isDefault ? source_default.green("Yes") : source_default.gray("No"),
+          n.active ? source_default.green("Yes") : source_default.red("No")
+        ]);
+      });
+      console.log(table.toString());
+      console.log(`
+${list.length} notification channel(s)`);
+    } catch (err) {
+      handleError(err, opts);
+    }
+  });
+  notifications.command("create").description("Create a new notification channel").requiredOption("--type <type>", "Notification type: discord, telegram, slack, webhook, ...").requiredOption("--name <name>", "Friendly name for this notification channel").option("--discord-webhook <url>", "Discord webhook URL (required for --type discord)").option("--discord-username <name>", "Discord bot display name (optional)").option("--telegram-token <token>", "Telegram bot token (required for --type telegram)").option("--telegram-chat-id <id>", "Telegram chat ID (required for --type telegram)").option("--slack-webhook <url>", "Slack webhook URL (required for --type slack)").option("--webhook-url <url>", "Webhook URL (required for --type webhook)").option("--webhook-content-type <type>", "Webhook content type (default: application/json)", "application/json").option("--default", "Enable this notification by default on all new monitors").option("--apply-existing", "Apply this notification to all existing monitors immediately").option("--json", "Output as JSON ({ ok, data })").addHelpText(
+    "after",
+    `
+${source_default.dim("Examples:")}
+  ${source_default.cyan('kuma notifications create --type discord --name "Alerts" --discord-webhook https://discord.com/api/webhooks/...')}
+  ${source_default.cyan('kuma notifications create --type telegram --name "TG" --telegram-token 123:ABC --telegram-chat-id -100...')}
+  ${source_default.cyan('kuma notifications create --type webhook --name "My Hook" --webhook-url https://example.com/hook')}
+  ${source_default.cyan('kuma notifications create --type discord --name "Default" --discord-webhook $URL --default --apply-existing')}
+
+${source_default.dim("Supported types:")}
+  discord, telegram, slack, webhook, gotify, ntfy, pushover, matrix, mattermost, teams ...
+  (full list at https://uptime.kuma.pet/docs)
+`
+  ).action(async (opts) => {
+    const config = getConfig();
+    if (!config) requireAuth(opts);
+    const json = isJsonMode(opts);
+    const payload = {
+      name: opts.name,
+      type: opts.type,
+      isDefault: opts.default ?? false,
+      active: true,
+      applyExisting: opts.applyExisting ?? false
+    };
+    switch (opts.type.toLowerCase()) {
+      case "discord":
+        if (!opts.discordWebhook) {
+          handleError(new Error("--discord-webhook is required for --type discord"), opts);
+        }
+        payload.discordWebhookUrl = opts.discordWebhook;
+        if (opts.discordUsername) payload.discordUsername = opts.discordUsername;
+        break;
+      case "telegram":
+        if (!opts.telegramToken || !opts.telegramChatId) {
+          handleError(new Error("--telegram-token and --telegram-chat-id are required for --type telegram"), opts);
+        }
+        payload.telegramBotToken = opts.telegramToken;
+        payload.telegramChatID = opts.telegramChatId;
+        break;
+      case "slack":
+        if (!opts.slackWebhook) {
+          handleError(new Error("--slack-webhook is required for --type slack"), opts);
+        }
+        payload.slackwebhookURL = opts.slackWebhook;
+        break;
+      case "webhook":
+        if (!opts.webhookUrl) {
+          handleError(new Error("--webhook-url is required for --type webhook"), opts);
+        }
+        payload.webhookURL = opts.webhookUrl;
+        payload.webhookContentType = opts.webhookContentType ?? "application/json";
+        break;
+      default:
+        if (!json) {
+          console.log(source_default.yellow(
+            `\u26A0\uFE0F  Type "${opts.type}" may require additional fields not exposed as flags.
+   The notification will be created but may need manual config in the UI.`
+          ));
+        }
+    }
+    try {
+      const client = await createAuthenticatedClient(config.url, config.token);
+      const id = await client.addNotification(payload);
+      client.disconnect();
+      if (json) {
+        jsonOut({ id, name: opts.name, type: opts.type });
+      }
+      success(`Notification "${opts.name}" created (ID: ${id})`);
+    } catch (err) {
+      handleError(err, opts);
+    }
+  });
+  notifications.command("delete <id>").description("Permanently delete a notification channel").option("--force", "Skip the confirmation prompt").option("--json", "Output as JSON ({ ok, data })").addHelpText(
+    "after",
+    `
+${source_default.dim("Examples:")}
+  ${source_default.cyan("kuma notifications delete 3")}
+  ${source_default.cyan("kuma notifications delete 3 --force")}
+  ${source_default.cyan("kuma notifications delete 3 --json")}
+`
+  ).action(async (id, opts) => {
+    const config = getConfig();
+    if (!config) requireAuth(opts);
+    const json = isJsonMode(opts);
+    const notifId = parseInt(id, 10);
+    if (isNaN(notifId)) {
+      handleError(new Error(`Invalid notification ID: ${id}`), opts);
+    }
+    if (!opts.force && !json) {
+      const enquirer3 = await Promise.resolve().then(() => __toESM(require_enquirer()));
+      const { prompt: prompt3 } = enquirer3.default;
+      const { confirm } = await prompt3({
+        type: "confirm",
+        name: "confirm",
+        message: `Delete notification ${id}?`,
+        initial: false
+      });
+      if (!confirm) {
+        console.log("Aborted.");
+        return;
+      }
+    }
+    try {
+      const client = await createAuthenticatedClient(config.url, config.token);
+      await client.deleteNotification(notifId);
+      client.disconnect();
+      if (json) {
+        jsonOut({ id: notifId, deleted: true });
+      }
+      success(`Notification ${id} deleted`);
+    } catch (err) {
+      handleError(err, opts);
+    }
+  });
+}
+
 // src/index.ts
 var program2 = new Command();
 program2.name("kuma").description("Manage Uptime Kuma monitors, heartbeats, and status pages from your terminal.").version("0.1.0").addHelpText(
@@ -30881,6 +31215,7 @@ monitorsCommand(program2);
 heartbeatCommand(program2);
 statusPagesCommand(program2);
 upgradeCommand(program2);
+notificationsCommand(program2);
 program2.parse(process.argv);
 /*! Bundled license information:
 
