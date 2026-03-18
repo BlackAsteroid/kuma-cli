@@ -1,3 +1,9 @@
+## [1.0.1](https://github.com/BlackAsteroid/kuma-cli/compare/v1.0.0...v1.0.1) (2026-03-18)
+
+### 🐛 Bug Fixes
+
+* kuma upgrade now installs from npm instead of GitHub source ([e066fd1](https://github.com/BlackAsteroid/kuma-cli/commit/e066fd1213e18a90ece4814985df4521898c49b6))
+
 ## 1.0.0 (2026-03-18)
 
 ### 🚀 Features
