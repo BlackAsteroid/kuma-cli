@@ -1,3 +1,9 @@
+## [1.1.0](https://github.com/BlackAsteroid/kuma-cli/compare/v1.0.1...v1.1.0) (2026-03-18)
+
+### 🚀 Features
+
+* notifications create/list/delete + monitors set-notification ([5cb5245](https://github.com/BlackAsteroid/kuma-cli/commit/5cb524540685d98f8406fa1ad9b4c29739f3966d)), closes [#23](https://github.com/BlackAsteroid/kuma-cli/issues/23)
+
 ## [1.0.1](https://github.com/BlackAsteroid/kuma-cli/compare/v1.0.0...v1.0.1) (2026-03-18)
 
 ### 🐛 Bug Fixes
