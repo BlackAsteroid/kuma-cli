@@ -52,10 +52,12 @@ export interface StatusPage {
 export class KumaClient {
   private socket: Socket;
   private url: string;
-  // Kuma pushes heartbeatList and uptime events immediately on connect (before
-  // getMonitorList is called), so we buffer them for later use.
+  // Kuma pushes heartbeatList, uptime, and statusPageList events immediately
+  // on connect / after auth, so we buffer them for later use.
   private heartbeatCache: Record<number, Heartbeat> = {};
   private uptimeCache: Record<string, number> = {};
+  // BUG-02 fix: buffer statusPageList pushed by Kuma during afterLogin
+  private statusPageCache: Record<string, StatusPage> | null = null;
 
   constructor(url: string) {
     this.url = url;
@@ -82,6 +84,12 @@ export class KumaClient {
         this.uptimeCache[`${monitorId}_${period}`] = value;
       }
     );
+
+    // BUG-02 fix: Kuma pushes statusPageList immediately after afterLogin.
+    // Capture it here so getStatusPageList() never races against the push.
+    this.socket.on("statusPageList", (data: Record<string, StatusPage>) => {
+      this.statusPageCache = data;
+    });
   }
 
   /**
@@ -299,20 +307,59 @@ export class KumaClient {
     });
   }
 
+  // BUG-01 fix: use the correct server event "getMonitorBeats" with a callback.
+  // The old code emitted "getHeartbeatList" (which doesn't exist) and tried to
+  // waitFor a "heartbeatList" push event — causing a timeout every time.
+  // The correct API: socket.emit("getMonitorBeats", monitorID, periodHours, cb)
+  // cb receives { ok: boolean, data: Heartbeat[] }
   async getHeartbeatList(
     monitorId: number,
-    period?: number
+    periodHours = 24
   ): Promise<Heartbeat[]> {
-    this.socket.emit("getHeartbeatList", monitorId, period ?? 24);
-    const result = await this.waitFor<{
-      data: Heartbeat[];
-    }>("heartbeatList");
-    return result.data ?? [];
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error("getMonitorBeats timeout")),
+        15000
+      );
+      this.socket.emit(
+        "getMonitorBeats",
+        monitorId,
+        periodHours,
+        (result: { ok: boolean; data?: Heartbeat[]; msg?: string }) => {
+          clearTimeout(timer);
+          if (!result.ok) {
+            reject(new Error(result.msg ?? "Failed to fetch heartbeats"));
+            return;
+          }
+          resolve(result.data ?? []);
+        }
+      );
+    });
   }
 
+  // BUG-02 fix: statusPageList is pushed by Kuma automatically during afterLogin,
+  // not as a response to any explicit emit. The old code registered a waitFor
+  // listener *after* the push had already fired, causing a guaranteed timeout.
+  // Fix: buffer the push in the constructor and return the cache here.
+  // If the cache is still null after auth (e.g. no status pages exist), fall back
+  // to a short waitFor so we don't hang forever.
   async getStatusPageList(): Promise<Record<string, StatusPage>> {
-    this.socket.emit("getStatusPageList");
-    return this.waitFor<Record<string, StatusPage>>("statusPageList");
+    if (this.statusPageCache !== null) {
+      return this.statusPageCache;
+    }
+    // Cache is empty — wait a short window in case the push is still in flight
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        // Timeout: server never pushed statusPageList — return empty object
+        resolve({});
+      }, 5000);
+
+      this.socket.once("statusPageList", (data: Record<string, StatusPage>) => {
+        clearTimeout(timer);
+        this.statusPageCache = data;
+        resolve(data);
+      });
+    });
   }
 
   disconnect(): void {
