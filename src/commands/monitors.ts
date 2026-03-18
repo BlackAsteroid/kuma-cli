@@ -501,4 +501,63 @@ ${chalk.dim("Examples:")}
         handleError(err, opts);
       }
     });
+
+  // SET-NOTIFICATION
+  monitors
+    .command("set-notification <id>")
+    .description("Assign or remove a notification channel from a monitor")
+    .requiredOption("--notification-id <nid>", "ID of the notification channel to assign")
+    .option("--remove", "Remove the notification instead of assigning it")
+    .option("--json", "Output as JSON ({ ok, data })")
+    .addHelpText(
+      "after",
+      `
+${chalk.dim("Examples:")}
+  ${chalk.cyan("kuma monitors set-notification 42 --notification-id 3")}
+  ${chalk.cyan("kuma monitors set-notification 42 --notification-id 3 --remove")}
+  ${chalk.cyan("kuma monitors set-notification 42 --notification-id 3 --json")}
+
+${chalk.dim("Bulk assign via pipe:")}
+  ${chalk.cyan("kuma monitors list --tag Production --json | jq '.data[].id' | xargs -I{} kuma monitors set-notification {} --notification-id 3")}
+`
+    )
+    .action(async (
+      id: string,
+      opts: { notificationId: string; remove?: boolean; json?: boolean }
+    ) => {
+      const config = getConfig();
+      if (!config) requireAuth(opts);
+
+      const json = isJsonMode(opts);
+      const monitorId = parseInt(id, 10);
+      const notifId = parseInt(opts.notificationId, 10);
+
+      if (isNaN(monitorId)) {
+        handleError(new Error(`Invalid monitor ID: ${id}`), opts);
+      }
+      if (isNaN(notifId)) {
+        handleError(new Error(`Invalid notification ID: ${opts.notificationId}`), opts);
+      }
+
+      try {
+        const client = await createAuthenticatedClient(config!.url, config!.token);
+        const monitorMap = await client.getMonitorList();
+        await client.setMonitorNotification(
+          monitorId,
+          notifId,
+          !opts.remove,
+          monitorMap
+        );
+        client.disconnect();
+
+        const action = opts.remove ? "removed from" : "assigned to";
+        if (json) {
+          jsonOut({ monitorId, notificationId: notifId, action: opts.remove ? "removed" : "assigned" });
+        }
+
+        success(`Notification ${notifId} ${action} monitor ${monitorId}`);
+      } catch (err) {
+        handleError(err, opts);
+      }
+    });
 }

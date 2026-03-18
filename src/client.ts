@@ -49,6 +49,44 @@ export interface StatusPage {
   description?: string;
 }
 
+/**
+ * Notification as stored in Kuma.
+ * `config` is a JSON string containing the provider-specific fields.
+ */
+export interface Notification {
+  id: number;
+  name: string;
+  active: boolean;
+  isDefault: boolean;
+  config: string; // JSON string — parse to access provider fields
+}
+
+/**
+ * Payload for addNotification.
+ * `type` is the Kuma provider key (e.g. "discord", "telegram", "webhook").
+ * Provider-specific fields are set as top-level properties.
+ */
+export interface NotificationPayload {
+  name: string;
+  type: string;
+  isDefault?: boolean;
+  active?: boolean;
+  applyExisting?: boolean;
+  // Discord
+  discordWebhookUrl?: string;
+  discordUsername?: string;
+  // Telegram
+  telegramBotToken?: string;
+  telegramChatID?: string;
+  // Slack
+  slackwebhookURL?: string;
+  // Generic webhook
+  webhookURL?: string;
+  webhookContentType?: string;
+  // Allow arbitrary extra provider fields
+  [key: string]: unknown;
+}
+
 export class KumaClient {
   private socket: Socket;
   private url: string;
@@ -58,6 +96,8 @@ export class KumaClient {
   private uptimeCache: Record<string, number> = {};
   // BUG-02 fix: buffer statusPageList pushed by Kuma during afterLogin
   private statusPageCache: Record<string, StatusPage> | null = null;
+  // Buffer notificationList pushed by Kuma during afterLogin
+  private notificationCache: Notification[] | null = null;
 
   constructor(url: string) {
     this.url = url;
@@ -89,6 +129,11 @@ export class KumaClient {
     // Capture it here so getStatusPageList() never races against the push.
     this.socket.on("statusPageList", (data: Record<string, StatusPage>) => {
       this.statusPageCache = data;
+    });
+
+    // Buffer notificationList pushed after afterLogin (same pattern as statusPageList)
+    this.socket.on("notificationList", (data: Notification[]) => {
+      this.notificationCache = Array.isArray(data) ? data : [];
     });
   }
 
@@ -359,6 +404,127 @@ export class KumaClient {
         this.statusPageCache = data;
         resolve(data);
       });
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Notifications
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Return the notification list pushed by Kuma after login.
+   * Falls back to a short waitFor if the push hasn't arrived yet.
+   */
+  async getNotificationList(): Promise<Notification[]> {
+    if (this.notificationCache !== null) {
+      return this.notificationCache;
+    }
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => resolve([]), 5000);
+      this.socket.once("notificationList", (data: Notification[]) => {
+        clearTimeout(timer);
+        const list = Array.isArray(data) ? data : [];
+        this.notificationCache = list;
+        resolve(list);
+      });
+    });
+  }
+
+  /**
+   * Create a new notification channel, or update one if id is provided.
+   * Returns the id of the created/updated notification.
+   *
+   * Server event: addNotification(notification, id|null, callback)
+   * callback: { ok: boolean, id?: number, msg?: string }
+   */
+  async addNotification(
+    payload: NotificationPayload,
+    id: number | null = null
+  ): Promise<number> {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error("addNotification timeout")),
+        10000
+      );
+      this.socket.emit(
+        "addNotification",
+        payload,
+        id,
+        (result: { ok: boolean; id?: number; msg?: string }) => {
+          clearTimeout(timer);
+          if (!result.ok) {
+            reject(new Error(result.msg ?? "Failed to create notification"));
+            return;
+          }
+          resolve(result.id!);
+        }
+      );
+    });
+  }
+
+  /**
+   * Delete a notification channel by id.
+   */
+  async deleteNotification(id: number): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error("deleteNotification timeout")),
+        10000
+      );
+      this.socket.emit(
+        "deleteNotification",
+        id,
+        (result: { ok: boolean; msg?: string }) => {
+          clearTimeout(timer);
+          if (!result.ok) {
+            reject(new Error(result.msg ?? "Failed to delete notification"));
+            return;
+          }
+          resolve();
+        }
+      );
+    });
+  }
+
+  /**
+   * Assign a notification to a monitor.
+   * Uses addMonitorTag-style approach: sends the notificationIDList via
+   * the `editMonitor` event with the full monitor object + updated notificationIDList.
+   * `notificationIDList` is { [notifId]: true } — Kuma's internal format.
+   */
+  async setMonitorNotification(
+    monitorId: number,
+    notificationId: number,
+    enabled: boolean,
+    monitorMap: Record<string, Monitor>
+  ): Promise<void> {
+    const existing = monitorMap[String(monitorId)];
+    if (!existing) {
+      throw new Error(`Monitor ${monitorId} not found`);
+    }
+
+    // Build the notificationIDList map (Kuma expects { "notifId": true/false })
+    // Start from existing — we need to merge, not replace
+    const notifIdList: Record<string, boolean> = {};
+    notifIdList[String(notificationId)] = enabled;
+
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error("setMonitorNotification timeout")),
+        10000
+      );
+      this.socket.emit(
+        "editMonitor",
+        { ...existing, id: monitorId, notificationIDList: notifIdList },
+        (result: { ok: boolean; msg?: string }) => {
+          clearTimeout(timer);
+          if (!result.ok) {
+            reject(new Error(result.msg ?? "Failed to update monitor notification"));
+            return;
+          }
+          resolve();
+        }
+      );
     });
   }
 
