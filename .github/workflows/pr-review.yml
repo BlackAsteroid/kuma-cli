@@ -1,0 +1,32 @@
+name: AI PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  review:
+    runs-on: self-hosted
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout pr-review-agents
+        uses: actions/checkout@v4
+        with:
+          repository: blackasteroid/pr-review-agents
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: .pr-review-agents
+
+      - name: Run agent reviews
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          chmod +x .pr-review-agents/scripts/review.sh
+          bash .pr-review-agents/scripts/review.sh
