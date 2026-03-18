@@ -23,6 +23,10 @@
     "type": "git",
     "url": "https://github.com/BlackAsteroid/kuma-cli"
   },
+  "files": [
+    "dist/",
+    "README.md"
+  ],
   "engines": {
     "node": ">=20"
   },
