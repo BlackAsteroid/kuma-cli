@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "CLI for managing Uptime Kuma via Socket.IO API",
   "bin": {
-    "kuma": "./dist/index.js"
+    "kuma": "dist/index.js"
   },
   "main": "./dist/index.js",
   "scripts": {
@@ -21,7 +21,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/BlackAsteroid/kuma-cli"
+    "url": "git+https://github.com/BlackAsteroid/kuma-cli.git"
   },
   "files": [
     "dist/",
