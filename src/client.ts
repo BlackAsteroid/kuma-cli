@@ -6,6 +6,12 @@ export interface LoginResult {
   msg?: string;
 }
 
+export interface MonitorTag {
+  id: number;
+  name: string;
+  color: string;
+}
+
 export interface Monitor {
   id: number;
   name: string;
@@ -16,6 +22,7 @@ export interface Monitor {
   interval: number;
   active: boolean;
   uptime?: number;
+  tags?: MonitorTag[];
   heartbeat?: {
     status: number;
     time: string;
@@ -123,8 +130,57 @@ export class KumaClient {
   }
 
   async getMonitorList(): Promise<Record<string, Monitor>> {
-    this.socket.emit("getMonitorList");
-    return this.waitFor<Record<string, Monitor>>("monitorList");
+    return new Promise((resolve) => {
+      const monitors: Record<string, Monitor> = {};
+      const heartbeats: Record<number, Heartbeat> = {};
+      const uptimes: Record<string, number> = {};
+      let monitorListReceived = false;
+
+      const mergeAndResolve = () => {
+        // Merge latest heartbeat + uptime into each monitor
+        for (const [idStr, monitor] of Object.entries(monitors)) {
+          const id = Number(idStr);
+          const hb = heartbeats[id];
+          if (hb) monitor.heartbeat = hb;
+          const up24 = uptimes[`${id}_24`];
+          if (up24 !== undefined) monitor.uptime = up24;
+        }
+        resolve(monitors);
+      };
+
+      // Safety valve — resolve after 3s regardless
+      const safetyTimer = setTimeout(() => mergeAndResolve(), 3000);
+
+      // Kuma pushes heartbeatList per monitor after auth: (monitorId, data[])
+      this.socket.on(
+        "heartbeatList",
+        (monitorId: number, data: Heartbeat[]) => {
+          if (Array.isArray(data) && data.length > 0) {
+            heartbeats[monitorId] = data[data.length - 1];
+          }
+        }
+      );
+
+      // Kuma pushes uptime per monitor after auth: (monitorId, period, value)
+      this.socket.on(
+        "uptime",
+        (monitorId: number, period: string, value: number) => {
+          uptimes[`${monitorId}_${period}`] = value;
+        }
+      );
+
+      // Request the monitor list via callback
+      this.socket.emit(
+        "getMonitorList",
+        (data: Record<string, Monitor>) => {
+          Object.assign(monitors, data);
+          monitorListReceived = true;
+          clearTimeout(safetyTimer);
+          // Give Kuma 1.5 s to push heartbeatList/uptime for all monitors
+          setTimeout(() => mergeAndResolve(), 1500);
+        }
+      );
+    });
   }
 
   // BUG-01 fix: addMonitor uses callback, not a separate event

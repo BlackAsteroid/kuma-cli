@@ -38,64 +38,108 @@ export function monitorsCommand(program: Command): void {
     .command("list")
     .description("List all monitors")
     .option("--json", "Output raw JSON")
-    .action(async (opts: { json?: boolean }) => {
-      const config = getConfig();
-      if (!config) requireAuth();
+    .option(
+      "--status <status>",
+      "Filter by status: up, down, pending, maintenance"
+    )
+    .option("--tag <tag>", "Filter by tag name")
+    .action(
+      async (opts: { json?: boolean; status?: string; tag?: string }) => {
+        const config = getConfig();
+        if (!config) requireAuth();
 
-      try {
-        const client = await createAuthenticatedClient(
-          config!.url,
-          config!.token
-        );
-        const monitorMap = await client.getMonitorList();
-        client.disconnect();
+        // Map human-readable status strings to numeric values
+        const STATUS_MAP: Record<string, number> = {
+          down: 0,
+          up: 1,
+          pending: 2,
+          maintenance: 3,
+        };
 
-        const list = Object.values(monitorMap);
+        try {
+          const client = await createAuthenticatedClient(
+            config!.url,
+            config!.token
+          );
+          const monitorMap = await client.getMonitorList();
+          client.disconnect();
 
-        if (opts.json) {
-          console.log(JSON.stringify(list, null, 2));
-          return;
-        }
+          let list = Object.values(monitorMap);
 
-        if (list.length === 0) {
-          console.log("No monitors found.");
-          return;
-        }
+          // Apply --status filter
+          if (opts.status) {
+            const statusKey = opts.status.toLowerCase();
+            if (!(statusKey in STATUS_MAP)) {
+              error(
+                `Invalid status "${opts.status}". Valid values: up, down, pending, maintenance`
+              );
+              process.exit(1);
+            }
+            const statusNum = STATUS_MAP[statusKey];
+            list = list.filter((m: Monitor) => {
+              if (m.heartbeat) return m.heartbeat.status === statusNum;
+              // For monitors with no heartbeat yet, match "pending" (2)
+              if (statusNum === 2) return m.active && !m.heartbeat;
+              return false;
+            });
+          }
 
-        const table = createTable([
-          "ID",
-          "Name",
-          "Type",
-          "URL / Host",
-          "Status",
-          "Uptime 24h",
-          "Ping",
-        ]);
+          // Apply --tag filter
+          if (opts.tag) {
+            const tagName = opts.tag.toLowerCase();
+            list = list.filter(
+              (m: Monitor) =>
+                Array.isArray(m.tags) &&
+                m.tags.some((t) => t.name.toLowerCase() === tagName)
+            );
+          }
 
-        list.forEach((m: Monitor) => {
-          const target = m.url ?? (m.hostname ? `${m.hostname}:${m.port}` : "—");
-          const status = m.heartbeat
-            ? statusLabel(m.heartbeat.status)
-            : m.active
-            ? statusLabel(2)
-            : "⏸ Paused";
-          table.push([
-            String(m.id),
-            m.name,
-            m.type,
-            target,
-            status,
-            formatUptime(m.uptime),
-            formatPing(m.heartbeat?.ping),
+          if (opts.json) {
+            console.log(JSON.stringify(list, null, 2));
+            return;
+          }
+
+          if (list.length === 0) {
+            console.log("No monitors found matching the given filters.");
+            return;
+          }
+
+          const table = createTable([
+            "ID",
+            "Name",
+            "Type",
+            "URL / Host",
+            "Status",
+            "Uptime 24h",
+            "Ping",
           ]);
-        });
 
-        console.log(table.toString());
-        console.log(`\n${list.length} monitor(s) total`);
-      } catch (err) {
-        handleError(err);
+          list.forEach((m: Monitor) => {
+            const target =
+              m.url ?? (m.hostname ? `${m.hostname}:${m.port}` : "—");
+            const status = m.heartbeat
+              ? statusLabel(m.heartbeat.status)
+              : m.active
+              ? statusLabel(2)
+              : "⏸ Paused";
+            table.push([
+              String(m.id),
+              m.name,
+              m.type,
+              target,
+              status,
+              formatUptime(m.uptime),
+              formatPing(m.heartbeat?.ping),
+            ]);
+          });
+
+          console.log(table.toString());
+          console.log(`\n${list.length} monitor(s) total`);
+        } catch (err) {
+          handleError(err);
+        }
       }
-    });
+    );
 
   // ADD
   monitors
