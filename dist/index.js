@@ -27643,8 +27643,46 @@ var KumaClient = class {
     });
   }
   async getMonitorList() {
-    this.socket.emit("getMonitorList");
-    return this.waitFor("monitorList");
+    return new Promise((resolve) => {
+      const monitors = {};
+      const heartbeats = {};
+      const uptimes = {};
+      let monitorListReceived = false;
+      const mergeAndResolve = () => {
+        for (const [idStr, monitor] of Object.entries(monitors)) {
+          const id = Number(idStr);
+          const hb = heartbeats[id];
+          if (hb) monitor.heartbeat = hb;
+          const up24 = uptimes[`${id}_24`];
+          if (up24 !== void 0) monitor.uptime = up24;
+        }
+        resolve(monitors);
+      };
+      const safetyTimer = setTimeout(() => mergeAndResolve(), 3e3);
+      this.socket.on(
+        "heartbeatList",
+        (monitorId, data) => {
+          if (Array.isArray(data) && data.length > 0) {
+            heartbeats[monitorId] = data[data.length - 1];
+          }
+        }
+      );
+      this.socket.on(
+        "uptime",
+        (monitorId, period, value2) => {
+          uptimes[`${monitorId}_${period}`] = value2;
+        }
+      );
+      this.socket.emit(
+        "getMonitorList",
+        (data) => {
+          Object.assign(monitors, data);
+          monitorListReceived = true;
+          clearTimeout(safetyTimer);
+          setTimeout(() => mergeAndResolve(), 1500);
+        }
+      );
+    });
   }
   // BUG-01 fix: addMonitor uses callback, not a separate event
   // BUG-03 fix: include required fields accepted_statuscodes, maxretries, retryInterval
@@ -29981,54 +30019,86 @@ var MONITOR_TYPES = [
 ];
 function monitorsCommand(program3) {
   const monitors = program3.command("monitors").description("Manage monitors");
-  monitors.command("list").description("List all monitors").option("--json", "Output raw JSON").action(async (opts) => {
-    const config = getConfig();
-    if (!config) requireAuth();
-    try {
-      const client = await createAuthenticatedClient(
-        config.url,
-        config.token
-      );
-      const monitorMap = await client.getMonitorList();
-      client.disconnect();
-      const list = Object.values(monitorMap);
-      if (opts.json) {
-        console.log(JSON.stringify(list, null, 2));
-        return;
-      }
-      if (list.length === 0) {
-        console.log("No monitors found.");
-        return;
-      }
-      const table = createTable([
-        "ID",
-        "Name",
-        "Type",
-        "URL / Host",
-        "Status",
-        "Uptime 24h",
-        "Ping"
-      ]);
-      list.forEach((m) => {
-        const target = m.url ?? (m.hostname ? `${m.hostname}:${m.port}` : "\u2014");
-        const status = m.heartbeat ? statusLabel(m.heartbeat.status) : m.active ? statusLabel(2) : "\u23F8 Paused";
-        table.push([
-          String(m.id),
-          m.name,
-          m.type,
-          target,
-          status,
-          formatUptime(m.uptime),
-          formatPing(m.heartbeat?.ping)
+  monitors.command("list").description("List all monitors").option("--json", "Output raw JSON").option(
+    "--status <status>",
+    "Filter by status: up, down, pending, maintenance"
+  ).option("--tag <tag>", "Filter by tag name").action(
+    async (opts) => {
+      const config = getConfig();
+      if (!config) requireAuth();
+      const STATUS_MAP = {
+        down: 0,
+        up: 1,
+        pending: 2,
+        maintenance: 3
+      };
+      try {
+        const client = await createAuthenticatedClient(
+          config.url,
+          config.token
+        );
+        const monitorMap = await client.getMonitorList();
+        client.disconnect();
+        let list = Object.values(monitorMap);
+        if (opts.status) {
+          const statusKey = opts.status.toLowerCase();
+          if (!(statusKey in STATUS_MAP)) {
+            error(
+              `Invalid status "${opts.status}". Valid values: up, down, pending, maintenance`
+            );
+            process.exit(1);
+          }
+          const statusNum = STATUS_MAP[statusKey];
+          list = list.filter((m) => {
+            if (m.heartbeat) return m.heartbeat.status === statusNum;
+            if (statusNum === 2) return m.active && !m.heartbeat;
+            return false;
+          });
+        }
+        if (opts.tag) {
+          const tagName = opts.tag.toLowerCase();
+          list = list.filter(
+            (m) => Array.isArray(m.tags) && m.tags.some((t) => t.name.toLowerCase() === tagName)
+          );
+        }
+        if (opts.json) {
+          console.log(JSON.stringify(list, null, 2));
+          return;
+        }
+        if (list.length === 0) {
+          console.log("No monitors found matching the given filters.");
+          return;
+        }
+        const table = createTable([
+          "ID",
+          "Name",
+          "Type",
+          "URL / Host",
+          "Status",
+          "Uptime 24h",
+          "Ping"
         ]);
-      });
-      console.log(table.toString());
-      console.log(`
+        list.forEach((m) => {
+          const target = m.url ?? (m.hostname ? `${m.hostname}:${m.port}` : "\u2014");
+          const status = m.heartbeat ? statusLabel(m.heartbeat.status) : m.active ? statusLabel(2) : "\u23F8 Paused";
+          table.push([
+            String(m.id),
+            m.name,
+            m.type,
+            target,
+            status,
+            formatUptime(m.uptime),
+            formatPing(m.heartbeat?.ping)
+          ]);
+        });
+        console.log(table.toString());
+        console.log(`
 ${list.length} monitor(s) total`);
-    } catch (err) {
-      handleError(err);
+      } catch (err) {
+        handleError(err);
+      }
     }
-  });
+  );
   monitors.command("add").description("Add a new monitor").option("--name <name>", "Monitor name").option("--type <type>", "Monitor type (http, tcp, ping, ...)").option("--url <url>", "URL or hostname to monitor").option("--interval <seconds>", "Check interval in seconds", "60").action(
     async (opts) => {
       const config = getConfig();
