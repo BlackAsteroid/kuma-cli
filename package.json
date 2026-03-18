@@ -10,7 +10,6 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
-    "prepare": "npm run build",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
