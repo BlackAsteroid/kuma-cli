@@ -1,8 +1,6 @@
 # kuma-cli
 
-> CLI for managing [Uptime Kuma](https://github.com/louislam/uptime-kuma) via its native Socket.IO API.
-
-No more clicking through the web panel — manage monitors, status pages, and heartbeats directly from your terminal.
+> CLI for managing [Uptime Kuma](https://github.com/louislam/uptime-kuma) via its native Socket.IO API. No more clicking through the web panel — manage monitors, status pages, and heartbeats directly from your terminal.
 
 ## Install
 
@@ -87,29 +85,29 @@ kuma monitors add --name "My API" --type http --url https://api.example.com
 
 ## Config
 
-Session is persisted automatically after login:
+After login, your session is saved automatically — you won't need to re-authenticate on every command:
 
 ```
-~/.config/kuma-cli-nodejs/config.json   (Linux/macOS)
-%APPDATA%\kuma-cli-nodejs\Config        (Windows)
+~/.config/kuma-cli-nodejs/config.json  (Linux/macOS)
+%APPDATA%\kuma-cli-nodejs\Config       (Windows)
 ```
 
 ```json
 {
   "url": "https://kuma.example.com",
-  "token": "<session-token>"
+  "token": "***"
 }
 ```
 
-Run `kuma status` to see the config path on your system.
+Run `kuma status` to see the exact config path on your machine.
 
 ## Architecture
 
-Uses Uptime Kuma's native **Socket.IO API** — no REST API, no hacks. The same protocol the web UI uses.
+kuma-cli talks to Uptime Kuma through its native **Socket.IO API** — the same protocol the web UI uses. No REST shims, no scraping, no hacks.
 
 ```
-kuma login   →  socket.emit("login")        →  receives token
-kuma *       →  socket.emit("loginByToken") →  authenticated session
+kuma login  → socket.emit("login")         → receives token
+kuma *      → socket.emit("loginByToken")  → authenticated session
 ```
 
 ## Development
@@ -118,7 +116,6 @@ kuma *       →  socket.emit("loginByToken") →  authenticated session
 git clone https://github.com/BlackAsteroid/kuma-cli
 cd kuma-cli
 npm install
-
 npm run dev        # watch mode (tsup)
 npm run build      # compile to dist/
 npm run typecheck  # tsc --noEmit
@@ -128,9 +125,9 @@ npm run typecheck  # tsc --noEmit
 
 ```
 src/
-├── index.ts           # Entry point, CLI setup
-├── client.ts          # Socket.IO connection + auth
-├── config.ts          # ~/.kuma-cli.json persistence
+├── index.ts          # Entry point, CLI setup
+├── client.ts         # Socket.IO connection + auth
+├── config.ts         # ~/.kuma-cli.json persistence
 ├── commands/
 │   ├── login.ts
 │   ├── logout.ts
@@ -138,8 +135,8 @@ src/
 │   ├── status-pages.ts
 │   └── heartbeat.ts
 └── utils/
-    ├── output.ts      # Table rendering, chalk helpers
-    └── errors.ts      # Error formatting + exit codes
+    ├── output.ts     # Table rendering, chalk helpers
+    └── errors.ts     # Error formatting + exit codes
 ```
 
 ## License
