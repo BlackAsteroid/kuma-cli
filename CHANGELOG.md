@@ -1,3 +1,13 @@
+## [1.2.0](https://github.com/BlackAsteroid/kuma-cli/compare/v1.1.0...v1.2.0) (2026-03-19)
+
+### 🚀 Features
+
+* monitors create, bulk-pause/resume, heartbeat send ([cefd450](https://github.com/BlackAsteroid/kuma-cli/commit/cefd45031aac31a1d2251a0c5fa5d7691c057704)), closes [#24](https://github.com/BlackAsteroid/kuma-cli/issues/24) [#26](https://github.com/BlackAsteroid/kuma-cli/issues/26) [#28](https://github.com/BlackAsteroid/kuma-cli/issues/28) [#24](https://github.com/BlackAsteroid/kuma-cli/issues/24) [#26](https://github.com/BlackAsteroid/kuma-cli/issues/26) [#28](https://github.com/BlackAsteroid/kuma-cli/issues/28)
+
+### 🐛 Bug Fixes
+
+* QA issues from PR [#31](https://github.com/BlackAsteroid/kuma-cli/issues/31) review ([a43a449](https://github.com/BlackAsteroid/kuma-cli/commit/a43a449ec1d4465c5fe1b98eaec6a49ba7e90caa))
+
 ## [1.1.0](https://github.com/BlackAsteroid/kuma-cli/compare/v1.0.1...v1.1.0) (2026-03-18)
 
 ### 🚀 Features
