@@ -1,3 +1,13 @@
+## [1.2.1](https://github.com/BlackAsteroid/kuma-cli/compare/v1.2.0...v1.2.1) (2026-03-19)
+
+### 🐛 Bug Fixes
+
+* security hardening (Gerard's review findings [#1](https://github.com/BlackAsteroid/kuma-cli/issues/1)-[#7](https://github.com/BlackAsteroid/kuma-cli/issues/7)) ([675d5bf](https://github.com/BlackAsteroid/kuma-cli/commit/675d5bfbe210db07ae06f6613b528b6306dddfb2)), closes [#2](https://github.com/BlackAsteroid/kuma-cli/issues/2) [#3](https://github.com/BlackAsteroid/kuma-cli/issues/3) [#5](https://github.com/BlackAsteroid/kuma-cli/issues/5) [#6](https://github.com/BlackAsteroid/kuma-cli/issues/6) [#4](https://github.com/BlackAsteroid/kuma-cli/issues/4)
+
+### 📚 Documentation
+
+* add agent usage section + v1.2.0 commands ([7fc703d](https://github.com/BlackAsteroid/kuma-cli/commit/7fc703d2063b603f11c68b628d6ba0bfdb8b5513))
+
 ## [1.2.0](https://github.com/BlackAsteroid/kuma-cli/compare/v1.1.0...v1.2.0) (2026-03-19)
 
 ### 🚀 Features
