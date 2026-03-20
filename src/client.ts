@@ -23,6 +23,7 @@ export interface Monitor {
   active: boolean;
   uptime?: number;
   tags?: MonitorTag[];
+  notificationIDList?: Record<string, boolean>;
   heartbeat?: {
     status: number;
     time: string;

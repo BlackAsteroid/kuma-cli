@@ -71,6 +71,11 @@ ${chalk.dim("Run")} ${chalk.cyan("kuma monitors <subcommand> --help")} ${chalk.d
       "Filter to a specific status: up, down, pending, maintenance"
     )
     .option("--tag <tag>", "Filter to monitors that have this tag name")
+    .option("--has-notification", "Filter to monitors that have at least one notification configured")
+    .option("--no-notification", "Filter to monitors that have no notifications configured")
+    .option("--search <query>", "Filter by monitor name or URL/hostname (case-insensitive)")
+    .option("--uptime-below <percent>", "Filter to monitors with 24h uptime below this percentage (e.g. 99.9)")
+    .option("--include-notifications", "Include notification channels in the JSON output")
     .addHelpText(
       "after",
       `
@@ -78,15 +83,35 @@ ${chalk.dim("Examples:")}
   ${chalk.cyan("kuma monitors list")}                        List all monitors
   ${chalk.cyan("kuma monitors list --status down")}          Show only DOWN monitors
   ${chalk.cyan("kuma monitors list --tag production")}       Filter by tag
+  ${chalk.cyan("kuma monitors list --no-notification")}      Audit monitors missing alerts
+  ${chalk.cyan("kuma monitors list --uptime-below 99.0")}    Find SLA-breaching monitors
   ${chalk.cyan("kuma monitors list --json | jq '.data[].name'")}
 `
     )
     .action(
-      async (opts: { json?: boolean; status?: string; tag?: string }) => {
+      async (opts: { 
+        json?: boolean; 
+        status?: string; 
+        tag?: string;
+        hasNotification?: boolean;
+        noNotification?: boolean;
+        search?: string;
+        uptimeBelow?: string;
+        includeNotifications?: boolean;
+      }) => {
         const config = getConfig();
         if (!config) requireAuth(opts);
 
         const json = isJsonMode(opts);
+
+        if (opts.hasNotification && opts.noNotification) {
+          handleError(new Error("Cannot use both --has-notification and --no-notification"), opts);
+        }
+
+        const uptimeThreshold = opts.uptimeBelow ? parseFloat(opts.uptimeBelow) : undefined;
+        if (uptimeThreshold !== undefined && isNaN(uptimeThreshold)) {
+          handleError(new Error(`Invalid uptime threshold: ${opts.uptimeBelow}`), opts);
+        }
 
         // Map human-readable status strings to numeric values
         const STATUS_MAP: Record<string, number> = {
@@ -136,8 +161,45 @@ ${chalk.dim("Examples:")}
             );
           }
 
+          // Apply --has-notification / --no-notification filter
+          if (opts.hasNotification || opts.noNotification) {
+            list = list.filter((m: Monitor) => {
+              const hasAny = m.notificationIDList
+                ? Object.values(m.notificationIDList).some((enabled) => enabled)
+                : false;
+              return opts.hasNotification ? hasAny : !hasAny;
+            });
+          }
+
+          // Apply --search filter
+          if (opts.search) {
+            const query = opts.search.toLowerCase();
+            list = list.filter((m: Monitor) => {
+              const target = m.url ?? (m.hostname ? `${m.hostname}:${m.port}` : "");
+              return m.name.toLowerCase().includes(query) || target.toLowerCase().includes(query);
+            });
+          }
+
+          // Apply --uptime-below filter
+          if (uptimeThreshold !== undefined) {
+            list = list.filter((m: Monitor) => {
+              if (m.uptime === undefined || m.uptime === null) return false;
+              const pct = m.uptime * 100;
+              return pct < uptimeThreshold;
+            });
+          }
+
           if (json) {
-            jsonOut(list);
+            if (opts.includeNotifications) {
+              jsonOut(list);
+            } else {
+              // Strip notificationIDList from output unless requested
+              const strippedList = list.map((m) => {
+                const { notificationIDList, ...rest } = m;
+                return rest;
+              });
+              jsonOut(strippedList);
+            }
           }
 
           if (list.length === 0) {

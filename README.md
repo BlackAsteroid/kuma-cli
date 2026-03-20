@@ -83,9 +83,20 @@ kuma monitors create --name "My API" --type http --url https://api.example.com
 | `kuma status-pages list` | List all status pages |
 | `kuma status-pages list --json` | Output raw JSON |
 
+### Config Export/Import
+
+| Command | Description |
+|---------|-------------|
+| `kuma config export --output <file>` | Export monitors and notifications to a JSON/YAML file |
+| `kuma config import <file>` | Import monitors and notifications from a file |
+
+For detailed usage, check [Config Export & Import](./docs/config-export-import.md).
+
 ## Using with AI agents
 
 kuma-cli works well in agent and automation contexts. Every command supports `--json` output and exits non-zero on errors, so you can parse results reliably and short-circuit on failure.
+
+For more details, see [Agent Mode (JSON)](./docs/agent-mode.md).
 
 Set `KUMA_JSON=1` to force JSON output on all commands — useful when you don't control the call site.
 
