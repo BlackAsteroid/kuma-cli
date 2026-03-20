@@ -57,9 +57,9 @@ export function configCommand(program: Command): void {
           .filter((n) => !opts.tag || usedNotifs.has(String(n.id)))
           .map((n) => {
             const { id, active, ...rest } = n;
-            let parsedConfig = {};
+            let parsedConfig: Record<string, unknown> = {};
             try {
-              parsedConfig = JSON.parse(n.config);
+              parsedConfig = JSON.parse(n.config) as Record<string, unknown>;
             } catch {
               // ignore
             }
