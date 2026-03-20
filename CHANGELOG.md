@@ -1,3 +1,9 @@
+## [1.3.0](https://github.com/BlackAsteroid/kuma-cli/compare/v1.2.1...v1.3.0) (2026-03-20)
+
+### 🚀 Features
+
+* advanced filtering, config export/import, docs folder ([#38](https://github.com/BlackAsteroid/kuma-cli/issues/38)-[#44](https://github.com/BlackAsteroid/kuma-cli/issues/44)) ([#45](https://github.com/BlackAsteroid/kuma-cli/issues/45)) ([8216d98](https://github.com/BlackAsteroid/kuma-cli/commit/8216d98b4971f51733457be3817ed369565f0129)), closes [#39](https://github.com/BlackAsteroid/kuma-cli/issues/39) [#40](https://github.com/BlackAsteroid/kuma-cli/issues/40) [#41](https://github.com/BlackAsteroid/kuma-cli/issues/41) [#42](https://github.com/BlackAsteroid/kuma-cli/issues/42) [#43](https://github.com/BlackAsteroid/kuma-cli/issues/43) [38-#41](https://github.com/BlackAsteroid/38-/issues/41) [42-#43](https://github.com/BlackAsteroid/42-/issues/43)
+
 ## [1.2.1](https://github.com/BlackAsteroid/kuma-cli/compare/v1.2.0...v1.2.1) (2026-03-19)
 
 ### 🐛 Bug Fixes
