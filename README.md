@@ -2,6 +2,8 @@
 
 > CLI for managing [Uptime Kuma](https://github.com/louislam/uptime-kuma) via its native Socket.IO API. No more clicking through the web panel — manage monitors, status pages, and heartbeats from your terminal.
 
+[![kuma-cli demo](.github/assets/demo.gif)](https://github.com/BlackAsteroid/kuma-cli/releases/latest/download/demo.mp4)
+
 ## Install
 
 ```bash
