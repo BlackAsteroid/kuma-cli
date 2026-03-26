@@ -21,7 +21,8 @@ module.exports = {
           { type: "fix", release: "patch" },
           { type: "perf", release: "patch" },
           { type: "revert", release: "patch" },
-          // docs/chore/ci/refactor → no release (omitted = no bump)
+          { type: "docs", release: "patch" },
+          // chore/ci/refactor → no release (omitted = no bump)
         ],
         parserOpts: {
           noteKeywords: ["BREAKING CHANGE", "BREAKING CHANGES"],
