@@ -1,3 +1,15 @@
+## [1.4.0](https://github.com/BlackAsteroid/kuma-cli/compare/v1.3.1...v1.4.0) (2026-03-26)
+
+### 🚀 Features
+
+* add demo GIF to README (closes [#52](https://github.com/BlackAsteroid/kuma-cli/issues/52), fixes [#54](https://github.com/BlackAsteroid/kuma-cli/issues/54)) ([#56](https://github.com/BlackAsteroid/kuma-cli/issues/56)) ([68388a6](https://github.com/BlackAsteroid/kuma-cli/commit/68388a67288d7430cb2d9f1b39fcc8811f99a7ea))
+* add demo video and GIF to README ([#53](https://github.com/BlackAsteroid/kuma-cli/issues/53)) ([83f6fb9](https://github.com/BlackAsteroid/kuma-cli/commit/83f6fb9c3fced99e77f27e420fd502e735c537f4))
+* add Homebrew tap support ([7f9a68a](https://github.com/BlackAsteroid/kuma-cli/commit/7f9a68aae044eddea818a130b778dee4880172a5))
+
+### 🐛 Bug Fixes
+
+* remove demo.mp4 from git history, add to .gitignore ([#55](https://github.com/BlackAsteroid/kuma-cli/issues/55)) ([d5d2458](https://github.com/BlackAsteroid/kuma-cli/commit/d5d24589ea16c0e6d2c37928ef609212f1bd82e7))
+
 ## [1.3.1](https://github.com/BlackAsteroid/kuma-cli/compare/v1.3.0...v1.3.1) (2026-03-20)
 
 ### 🐛 Bug Fixes
