@@ -30,6 +30,16 @@ describe("config migration", () => {
     expect(result.active).toBeNull();
   });
 
+  it("migrates when instances is empty but legacy keys exist", () => {
+    const config = { instances: {}, url: "https://kuma.example.com", token: "abc123" };
+    const result = migrateConfig(config as Record<string, unknown>);
+    expect(result.instances["kuma-example-com"]).toEqual({
+      url: "https://kuma.example.com",
+      token: "abc123",
+    });
+    expect(result.active).toEqual({ type: "instance", name: "kuma-example-com" });
+  });
+
   it("derives hostname correctly", () => {
     expect(deriveInstanceName("https://kuma.prod.example.com")).toBe("kuma-prod-example-com");
     expect(deriveInstanceName("https://192.168.1.1:3001")).toBe("192-168-1-1-3001");

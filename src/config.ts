@@ -49,7 +49,18 @@ export function deriveInstanceName(url: string): string {
 export function migrateConfig(raw: Record<string, unknown>): KumaConfigSchema {
   // Already migrated
   if (raw.instances && typeof raw.instances === "object") {
-    return raw as unknown as KumaConfigSchema;
+    const instances = raw.instances as Record<string, unknown>;
+    // If instances has entries, trust it as the migrated format
+    if (Object.keys(instances).length > 0) {
+      return raw as unknown as KumaConfigSchema;
+    }
+    // Empty instances object + legacy keys = needs migration
+    if (raw.url && raw.token) {
+      // Fall through to legacy migration below
+    } else {
+      // Empty instances, no legacy keys = fresh config
+      return raw as unknown as KumaConfigSchema;
+    }
   }
 
   // Legacy shape: { url, token }
