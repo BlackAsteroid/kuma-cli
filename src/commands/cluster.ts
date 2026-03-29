@@ -18,9 +18,22 @@ export function clusterCommand(program: Command): void {
   cluster
     .command("create <name>")
     .description("Create a cluster from existing instances")
-    .requiredOption("--instances <names>", "Comma-separated instance names")
-    .requiredOption("--primary <name>", "Primary instance name")
+    .requiredOption("--instances <names>", "Comma-separated instance aliases (from kuma login --as)")
+    .requiredOption("--primary <name>", "Instance alias to use as the primary (source of truth)")
     .option("--json", "Output as JSON")
+    .addHelpText(
+      "after",
+      `
+Example:
+  $ kuma login https://kuma1.example.com --as server1
+  $ kuma login https://kuma2.example.com --as server2
+  $ kuma cluster create my-cluster --instances server1,server2 --primary server1
+
+  <name> is any label you choose for the cluster.
+  --instances must reference aliases created with "kuma login --as".
+  --primary must be one of the listed instances.
+`
+    )
     .action((name: string, opts: { instances: string; primary: string; json?: boolean }) => {
       const instanceNames = opts.instances.split(",").map((s) => s.trim());
 
