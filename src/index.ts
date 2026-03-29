@@ -46,6 +46,19 @@ ${chalk.bold("Exit codes:")}
   ${chalk.yellow("3")}  Not found
   ${chalk.yellow("4")}  Auth error (session expired — run ${chalk.cyan("kuma login")} again)
 
+${chalk.bold("Multi-Instance:")}
+  ${chalk.cyan("kuma login https://kuma.example.com --as production")}   Save as named instance
+  ${chalk.cyan("kuma login https://kuma2.example.com --as staging")}    Save another instance
+  ${chalk.cyan("kuma instances list")}                                  List all saved instances
+  ${chalk.cyan("kuma use production")}                                  Switch active instance
+
+${chalk.bold("Clusters:")}
+  ${chalk.cyan("kuma cluster create prod-ha --instances production,staging --primary production")}
+  ${chalk.cyan("kuma cluster sync prod-ha")}              Sync monitors across cluster
+  ${chalk.cyan("kuma cluster info prod-ha")}              Show cluster details
+  ${chalk.cyan("kuma monitors list --cluster prod-ha")}   List monitors from cluster
+  ${chalk.cyan("kuma monitors list --instance staging")}  List monitors from specific instance
+
 ${chalk.dim("Config stored at:")} ${chalk.yellow(getConfigPath())}
 `
   );
