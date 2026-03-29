@@ -15,6 +15,7 @@ export function loginCommand(program: Command): void {
       "Authenticate with an Uptime Kuma instance and save the session token locally"
     )
     .option("--json", "Output as JSON ({ ok, data })")
+    .option("--as <alias>", "Name this instance (default: derived from hostname)")
     .addHelpText(
       "after",
       `
@@ -27,7 +28,7 @@ ${chalk.dim("Notes:")}
   Token location: run ${chalk.cyan("kuma status")} to see the config path.
 `
     )
-    .action(async (url: string, opts: { json?: boolean }) => {
+    .action(async (url: string, opts: { json?: boolean; as?: string }) => {
       const json = isJsonMode(opts);
 
       try {
@@ -82,13 +83,13 @@ ${chalk.dim("Notes:")}
           process.exit(1);
         }
 
-        saveConfig({ url: normalizedUrl, token: result.token });
+        const instanceName = saveConfig({ url: normalizedUrl, token: result.token }, opts.as);
 
         if (json) {
-          jsonOut({ url: normalizedUrl, username });
+          jsonOut({ url: normalizedUrl, username, instanceName });
         }
 
-        success(`Logged in as ${username} → ${normalizedUrl}`);
+        success(`Logged in to ${normalizedUrl} as "${instanceName}"`);
       } catch (err) {
         handleError(err, opts);
       }
