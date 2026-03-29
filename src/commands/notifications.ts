@@ -1,9 +1,9 @@
 import { Command } from "commander";
 import chalk from "chalk";
-import { createAuthenticatedClient, NotificationPayload } from "../client.js";
-import { getConfig } from "../config.js";
+import { NotificationPayload } from "../client.js";
+import { resolveClient } from "../instance-manager.js";
 import { createTable, isJsonMode, jsonOut, success, error } from "../utils/output.js";
-import { handleError, requireAuth } from "../utils/errors.js";
+import { handleError } from "../utils/errors.js";
 
 /**
  * Security fix #1: Resolve a flag value from the environment if it looks like an env var.
@@ -64,6 +64,7 @@ ${chalk.dim("Run")} ${chalk.cyan("kuma notifications <subcommand> --help")} ${ch
     .command("list")
     .description("List all configured notification channels with their IDs and types")
     .option("--json", "Output as JSON ({ ok, data })")
+    .option("--instance <name>", "Target a specific instance")
     .addHelpText(
       "after",
       `
@@ -73,14 +74,11 @@ ${chalk.dim("Examples:")}
   ${chalk.cyan("kuma notifications list --json | jq '.data[] | {id, name}'")}
 `
     )
-    .action(async (opts: { json?: boolean }) => {
-      const config = getConfig();
-      if (!config) requireAuth(opts);
-
+    .action(async (opts: { json?: boolean; instance?: string }) => {
       const json = isJsonMode(opts);
 
       try {
-        const client = await createAuthenticatedClient(config!.url, config!.token);
+        const { client } = await resolveClient(opts);
         const list = await client.getNotificationList();
         client.disconnect();
 
@@ -148,6 +146,7 @@ ${chalk.dim("Examples:")}
     .option("--default", "Enable this notification by default on all new monitors")
     .option("--apply-existing", "Apply this notification to all existing monitors immediately")
     .option("--json", "Output as JSON ({ ok, data })")
+    .option("--instance <name>", "Target a specific instance")
     .addHelpText(
       "after",
       `
@@ -179,10 +178,8 @@ ${chalk.dim("Supported types:")}
       default?: boolean;
       applyExisting?: boolean;
       json?: boolean;
+      instance?: string;
     }) => {
-      const config = getConfig();
-      if (!config) requireAuth(opts);
-
       const json = isJsonMode(opts);
 
       // Build the notification payload
@@ -245,7 +242,7 @@ ${chalk.dim("Supported types:")}
       }
 
       try {
-        const client = await createAuthenticatedClient(config!.url, config!.token);
+        const { client } = await resolveClient(opts);
         const id = await client.addNotification(payload);
         client.disconnect();
 
@@ -265,6 +262,7 @@ ${chalk.dim("Supported types:")}
     .description("Permanently delete a notification channel")
     .option("--force", "Skip the confirmation prompt")
     .option("--json", "Output as JSON ({ ok, data })")
+    .option("--instance <name>", "Target a specific instance")
     .addHelpText(
       "after",
       `
@@ -274,10 +272,7 @@ ${chalk.dim("Examples:")}
   ${chalk.cyan("kuma notifications delete 3 --json")}
 `
     )
-    .action(async (id: string, opts: { force?: boolean; json?: boolean }) => {
-      const config = getConfig();
-      if (!config) requireAuth(opts);
-
+    .action(async (id: string, opts: { force?: boolean; json?: boolean; instance?: string }) => {
       const json = isJsonMode(opts);
       const notifId = parseInt(id, 10);
 
@@ -301,7 +296,7 @@ ${chalk.dim("Examples:")}
       }
 
       try {
-        const client = await createAuthenticatedClient(config!.url, config!.token);
+        const { client } = await resolveClient(opts);
         await client.deleteNotification(notifId);
         client.disconnect();
 
