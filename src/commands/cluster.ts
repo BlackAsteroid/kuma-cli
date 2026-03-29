@@ -8,11 +8,12 @@ import {
 } from "../config.js";
 import { createTable, success, error, warn, info, isJsonMode, jsonOut, jsonError, statusLabel } from "../utils/output.js";
 import { createAuthenticatedClient } from "../client.js";
+import chalk from "chalk";
 
 export function clusterCommand(program: Command): void {
   const cluster = program
     .command("cluster")
-    .description("Manage Uptime Kuma instance clusters");
+    .description("Manage clusters of Uptime Kuma instances for high availability");
 
   // --- create ---
   cluster
@@ -24,14 +25,22 @@ export function clusterCommand(program: Command): void {
     .addHelpText(
       "after",
       `
-Example:
-  $ kuma login https://kuma1.example.com --as server1
-  $ kuma login https://kuma2.example.com --as server2
-  $ kuma cluster create my-cluster --instances server1,server2 --primary server1
+${chalk.dim("Arguments:")}
+  ${chalk.cyan("<name>")}  Any label you choose for this cluster (e.g. "ha-group", "prod-backup")
 
-  <name> is any label you choose for the cluster.
-  --instances must reference aliases created with "kuma login --as".
-  --primary must be one of the listed instances.
+${chalk.dim("How it works:")}
+  1. First, login to each Uptime Kuma server and give it an alias:
+     ${chalk.cyan("kuma login https://kuma1.example.com --as server1")}
+     ${chalk.cyan("kuma login https://kuma2.example.com --as server2")}
+
+  2. Then create a cluster using those aliases:
+     ${chalk.cyan("kuma cluster create my-cluster --instances server1,server2 --primary server1")}
+
+  3. Sync the primary's monitors to all secondaries:
+     ${chalk.cyan("kuma cluster sync my-cluster")}
+
+${chalk.dim("The --primary is the source of truth — its monitors and notifications")}
+${chalk.dim("will be replicated to the other instances during sync.")}
 `
     )
     .action((name: string, opts: { instances: string; primary: string; json?: boolean }) => {
@@ -204,9 +213,29 @@ Example:
   // --- sync ---
   cluster
     .command("sync <name>")
-    .description("Sync monitors from primary to all secondary instances")
+    .description("Sync monitors and notifications from the primary instance to all secondaries")
     .option("--dry-run", "Show what would be synced without making changes")
     .option("--json", "Output as JSON")
+    .addHelpText(
+      "after",
+      `
+${chalk.dim("Arguments:")}
+  ${chalk.cyan("<name>")}  The cluster name (as created with ${chalk.cyan("kuma cluster create")})
+
+${chalk.dim("What gets synced:")}
+  1. ${chalk.bold("Monitors")} from the primary are replicated to each secondary.
+     Existing monitors (matched by name + type + URL) are skipped.
+  2. ${chalk.bold("Health monitors")} are created so each instance checks the others.
+  3. ${chalk.bold("Notifications")} are copied to secondaries but ${chalk.yellow("kept disabled")}
+     to avoid duplicate alerts. The primary owns active notifications.
+
+${chalk.dim("Examples:")}
+  ${chalk.cyan("kuma cluster sync my-cluster --dry-run")}   ${chalk.dim("# Preview without changes")}
+  ${chalk.cyan("kuma cluster sync my-cluster")}             ${chalk.dim("# Run the actual sync")}
+
+${chalk.dim("Sync is idempotent — safe to run multiple times.")}
+`
+    )
     .action(async (name: string, opts: { dryRun?: boolean; json?: boolean }) => {
       const clusterConfig = getClusterConfig(name);
       if (!clusterConfig) {

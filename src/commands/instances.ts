@@ -10,11 +10,11 @@ import { createTable, success, error, warn, isJsonMode, jsonOut, jsonError } fro
 export function instancesCommand(program: Command): void {
   const instances = program
     .command("instances")
-    .description("Manage Uptime Kuma instances");
+    .description("Manage saved Uptime Kuma instances (added via kuma login --as <alias>)");
 
   instances
     .command("list")
-    .description("List all configured instances")
+    .description("List all saved instances and their aliases")
     .option("--json", "Output as JSON")
     .action((opts: { json?: boolean }) => {
       const all = getAllInstances();
@@ -52,7 +52,7 @@ export function instancesCommand(program: Command): void {
 
   instances
     .command("remove <name>")
-    .description("Remove a configured instance")
+    .description("Remove a saved instance by its alias")
     .option("--force", "Skip confirmation")
     .option("--json", "Output as JSON")
     .action(async (name: string, opts: { force?: boolean; json?: boolean }) => {

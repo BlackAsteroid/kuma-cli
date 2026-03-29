@@ -7,13 +7,29 @@ import {
   getAllClusters,
 } from "../config.js";
 import { success, error, isJsonMode, jsonOut, jsonError } from "../utils/output.js";
+import chalk from "chalk";
 
 export function useCommand(program: Command): void {
   program
     .command("use [name]")
-    .description("Set the active instance or cluster context")
-    .option("--cluster <name>", "Set active cluster instead of instance")
+    .description("Switch the active instance or cluster (affects all subsequent commands)")
+    .option("--cluster <name>", "Set a cluster as active context (commands default to its primary instance)")
     .option("--json", "Output as JSON")
+    .addHelpText(
+      "after",
+      `
+${chalk.dim("Arguments:")}
+  ${chalk.cyan("[name]")}  The alias of an instance (as set with ${chalk.cyan("kuma login --as <alias>")})
+
+${chalk.dim("Examples:")}
+  ${chalk.cyan("kuma use server1")}                  ${chalk.dim("# Switch to instance 'server1'")}
+  ${chalk.cyan("kuma use --cluster my-cluster")}     ${chalk.dim("# Switch to cluster (uses its primary)")}
+  ${chalk.cyan("kuma instances list")}               ${chalk.dim("# See available instance aliases")}
+  ${chalk.cyan("kuma cluster list")}                 ${chalk.dim("# See available cluster names")}
+
+${chalk.dim("Once active, all commands target that instance unless overridden with --instance or --cluster.")}
+`
+    )
     .action((name: string | undefined, opts: { cluster?: string; json?: boolean }) => {
       if (opts.cluster) {
         const cluster = getClusterConfig(opts.cluster);
