@@ -112,6 +112,14 @@ export function removeInstanceConfig(name: string): boolean {
   return true;
 }
 
+export function clearInstanceToken(name: string): boolean {
+  const config = loadConfig();
+  if (!config.instances[name]) return false;
+  config.instances[name].token = "";
+  saveFullConfig(config);
+  return true;
+}
+
 export function getInstanceCluster(name: string): string | null {
   const config = loadConfig();
   for (const [clusterName, cluster] of Object.entries(config.clusters)) {
@@ -174,19 +182,25 @@ export function getConfig(): { url: string; token: string } | null {
 
   if (active) {
     if (active.type === "instance") {
-      return config.instances[active.name] ?? null;
+      const inst = config.instances[active.name];
+      if (inst && inst.token) return inst;
+      return null;
     }
     if (active.type === "cluster") {
       const cluster = config.clusters[active.name];
       if (cluster) {
-        return config.instances[cluster.primary] ?? null;
+        const inst = config.instances[cluster.primary];
+        if (inst && inst.token) return inst;
+        return null;
       }
     }
   }
 
   const names = Object.keys(config.instances);
   if (names.length === 1) {
-    return config.instances[names[0]];
+    const inst = config.instances[names[0]];
+    if (inst && inst.token) return inst;
+    return null;
   }
 
   return null;

@@ -117,8 +117,6 @@ ${chalk.dim("Examples:")}
             process.exit(1);
           }
 
-          const clusterTag = `kuma-cluster:${opts.cluster}`;
-
           // Fetch from all instances concurrently
           const allMonitors: (Monitor & { _instance: string })[] = [];
 
@@ -132,7 +130,7 @@ ${chalk.dim("Examples:")}
                 const monitors = Object.values(monitorMap);
                 client.disconnect();
                 return monitors
-                  .filter((m: Monitor) => !m.tags?.some((t) => t.name === clusterTag))
+                  .filter((m: Monitor) => !m.name.startsWith("[cluster] "))
                   .map((m: Monitor) => ({ ...m, _instance: instanceName }));
               } catch {
                 return [];

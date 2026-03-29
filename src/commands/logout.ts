@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { clearConfig, getActiveContext, getInstanceConfig, getAllInstances, removeInstanceConfig } from "../config.js";
+import { clearConfig, getActiveContext, getInstanceConfig, getAllInstances, clearInstanceToken } from "../config.js";
 import { success, error, isJsonMode, jsonOut } from "../utils/output.js";
 import chalk from "chalk";
 
@@ -57,7 +57,7 @@ ${chalk.dim("Examples:")}
         return;
       }
 
-      removeInstanceConfig(instanceName);
+      clearInstanceToken(instanceName);
 
       if (json) {
         jsonOut({ loggedOut: true, instanceName });

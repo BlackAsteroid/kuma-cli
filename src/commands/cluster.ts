@@ -133,8 +133,6 @@ export function clusterCommand(program: Command): void {
 
       if (!isJsonMode(opts)) info(`Cluster: ${name}\n`);
 
-      const clusterTag = `kuma-cluster:${name}`;
-
       const results = await Promise.allSettled(
         clusterConfig.instances.map(async (instanceName) => {
           const config = getInstanceConfig(instanceName);
@@ -144,7 +142,7 @@ export function clusterCommand(program: Command): void {
             const client = await createAuthenticatedClient(config.url, config.token);
             const monitorMap = await client.getMonitorList();
             const monitors = Object.values(monitorMap);
-            const healthMonitors = monitors.filter((m) => m.tags?.some((t) => t.name === clusterTag));
+            const healthMonitors = monitors.filter((m) => m.name.startsWith("[cluster] "));
             client.disconnect();
             return {
               instanceName,
@@ -225,11 +223,9 @@ export function clusterCommand(program: Command): void {
 
       const primaryMonitorMap = await primaryClient.getMonitorList();
       const primaryMonitors = Object.values(primaryMonitorMap);
-      const clusterTag = `kuma-cluster:${name}`;
-
       // Filter out cluster health monitors
       const monitorsToSync = primaryMonitors.filter(
-        (m) => !m.tags?.some((t) => t.name === clusterTag)
+        (m) => !m.name.startsWith("[cluster] ")
       );
 
       if (!isJsonMode(opts)) {
