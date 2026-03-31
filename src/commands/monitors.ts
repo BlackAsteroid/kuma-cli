@@ -1,7 +1,8 @@
 import { Command } from "commander";
 import enquirer from "enquirer";
 import { createAuthenticatedClient, Monitor } from "../client.js";
-import { getConfig } from "../config.js";
+import { getClusterConfig, getInstanceConfig } from "../config.js";
+import { resolveClient } from "../instance-manager.js";
 import {
   createTable,
   statusLabel,
@@ -9,10 +10,12 @@ import {
   formatPing,
   success,
   error,
+  info,
   isJsonMode,
   jsonOut,
+  jsonError,
 } from "../utils/output.js";
-import { handleError, requireAuth } from "../utils/errors.js";
+import { handleError } from "../utils/errors.js";
 import chalk from "chalk";
 
 const { prompt } = enquirer as any;
@@ -76,6 +79,8 @@ ${chalk.dim("Run")} ${chalk.cyan("kuma monitors <subcommand> --help")} ${chalk.d
     .option("--search <query>", "Filter by monitor name or URL/hostname (case-insensitive)")
     .option("--uptime-below <percent>", "Filter to monitors with 24h uptime below this percentage (e.g. 99.9)")
     .option("--include-notifications", "Include notification channels in the JSON output")
+    .option("--instance <name>", "Target a specific instance")
+    .option("--cluster <name>", "Show a unified view across all instances in a named cluster")
     .addHelpText(
       "after",
       `
@@ -89,18 +94,117 @@ ${chalk.dim("Examples:")}
 `
     )
     .action(
-      async (opts: { 
-        json?: boolean; 
-        status?: string; 
+      async (opts: {
+        json?: boolean;
+        status?: string;
         tag?: string;
         hasNotification?: boolean;
         withoutNotification?: boolean;
         search?: string;
         uptimeBelow?: string;
         includeNotifications?: boolean;
+        instance?: string;
+        cluster?: string;
       }) => {
-        const config = getConfig();
-        if (!config) requireAuth(opts);
+        // ---------------------------------------------------------------
+        // Cluster unified view
+        // ---------------------------------------------------------------
+        if (opts.cluster) {
+          const clusterConfig = getClusterConfig(opts.cluster);
+          if (!clusterConfig) {
+            if (isJsonMode(opts)) return jsonError(`Cluster '${opts.cluster}' not found.`);
+            error(`Cluster '${opts.cluster}' not found.`);
+            process.exit(1);
+          }
+
+          // Fetch from all instances concurrently
+          const allMonitors: (Monitor & { _instance: string })[] = [];
+
+          const results = await Promise.allSettled(
+            clusterConfig.instances.map(async (instanceName) => {
+              const instConfig = getInstanceConfig(instanceName);
+              if (!instConfig) return [];
+              try {
+                const client = await createAuthenticatedClient(instConfig.url, instConfig.token);
+                const monitorMap = await client.getMonitorList();
+                const monitors = Object.values(monitorMap);
+                client.disconnect();
+                return monitors
+                  .filter((m: Monitor) => !m.name.startsWith("[cluster] "))
+                  .map((m: Monitor) => ({ ...m, _instance: instanceName }));
+              } catch {
+                return [];
+              }
+            })
+          );
+
+          for (const r of results) {
+            if (r.status === "fulfilled") allMonitors.push(...(r.value as (Monitor & { _instance: string })[]));
+          }
+
+          // Deduplicate: worst-status-wins
+          // Priority: DOWN (0) > MAINTENANCE (3) > PENDING (2) > UP (1)
+          const STATUS_PRIORITY: Record<number, number> = { 0: 0, 3: 1, 2: 2, 1: 3 };
+          const deduped = new Map<string, Monitor & { _instance: string }>();
+
+          for (const m of allMonitors) {
+            const key = `${m.name}|${m.type}|${m.url ?? m.hostname ?? ""}`;
+            const existing = deduped.get(key);
+            if (!existing) {
+              deduped.set(key, m);
+            } else {
+              const existingPri = STATUS_PRIORITY[existing.heartbeat?.status ?? 2] ?? 2;
+              const newPri = STATUS_PRIORITY[m.heartbeat?.status ?? 2] ?? 2;
+              if (newPri < existingPri) deduped.set(key, m);
+            }
+          }
+
+          const clusterMonitors = Array.from(deduped.values());
+
+          if (isJsonMode(opts)) {
+            return jsonOut({ cluster: opts.cluster, monitors: clusterMonitors });
+          }
+
+          if (clusterMonitors.length === 0) {
+            info(`Cluster '${opts.cluster}' -- unified view (0 monitors)`);
+            console.log("No monitors found.");
+            return;
+          }
+
+          const table = createTable([
+            "ID",
+            "Name",
+            "Type",
+            "URL / Host",
+            "Status",
+            "Uptime 24h",
+            "Ping",
+          ]);
+
+          for (const m of clusterMonitors) {
+            const target = m.url ?? (m.hostname ? `${m.hostname}:${m.port}` : "\u2014");
+            const status = m.heartbeat
+              ? statusLabel(m.heartbeat.status)
+              : m.active
+              ? statusLabel(2)
+              : "\u23F8 Paused";
+            table.push([
+              String(m.id),
+              m.name,
+              m.type,
+              target,
+              status,
+              formatUptime(m.uptime),
+              formatPing(m.heartbeat?.ping),
+            ]);
+          }
+
+          info(`Cluster '${opts.cluster}' \u2014 unified view (${clusterMonitors.length} monitors, worst-status-wins)\n`);
+          console.log(table.toString());
+          console.log(`\n${clusterMonitors.length} monitor(s) total`);
+          return;
+        }
+
 
         const json = isJsonMode(opts);
 
@@ -122,10 +226,7 @@ ${chalk.dim("Examples:")}
         };
 
         try {
-          const client = await createAuthenticatedClient(
-            config!.url,
-            config!.token
-          );
+          const { client } = await resolveClient(opts);
           const monitorMap = await client.getMonitorList();
           client.disconnect();
 
@@ -253,6 +354,7 @@ ${chalk.dim("Examples:")}
     .option("--url <url>", "URL (http), hostname:port (tcp), or hostname (ping/dns)")
     .option("--interval <seconds>", "How often to check, in seconds (default: 60)", "60")
     .option("--json", "Output as JSON ({ ok, data })")
+    .option("--instance <name>", "Target a specific instance")
     .addHelpText(
       "after",
       `
@@ -270,10 +372,8 @@ ${chalk.dim("Examples:")}
         url?: string;
         interval?: string;
         json?: boolean;
+        instance?: string;
       }) => {
-        const config = getConfig();
-        if (!config) requireAuth(opts);
-
         const json = isJsonMode(opts);
 
         try {
@@ -307,10 +407,7 @@ ${chalk.dim("Examples:")}
           const url = opts.url ?? answers.url;
           const interval = parseInt(opts.interval ?? "60", 10);
 
-          const client = await createAuthenticatedClient(
-            config!.url,
-            config!.token
-          );
+          const { client } = await resolveClient(opts);
           const result = await client.addMonitor({ name, type, url, interval });
           client.disconnect();
 
@@ -336,6 +433,7 @@ ${chalk.dim("Examples:")}
     .option("--tag <tag>", "Assign a tag by name (repeatable — must already exist in Kuma)", collect, [])
     .option("--notification-id <id>", "Assign a notification channel by ID (repeatable)", collectInt, [])
     .option("--json", "Output as JSON ({ ok, data }) — prints monitor ID and pushToken to stdout")
+    .option("--instance <name>", "Target a specific instance")
     .addHelpText(
       "after",
       `
@@ -359,10 +457,8 @@ ${chalk.dim("Full pipeline (deploy → monitor → heartbeat):")}
       tag: string[];
       notificationId: number[];
       json?: boolean;
+      instance?: string;
     }) => {
-      const config = getConfig();
-      if (!config) requireAuth(opts);
-
       const json = isJsonMode(opts);
       const interval = parseInt(opts.interval ?? "60", 10);
 
@@ -372,7 +468,7 @@ ${chalk.dim("Full pipeline (deploy → monitor → heartbeat):")}
       }
 
       try {
-        const client = await createAuthenticatedClient(config!.url, config!.token);
+        const { client, instanceName } = await resolveClient(opts);
 
         // Create the monitor
         const result = await client.addMonitor({
@@ -434,8 +530,9 @@ ${chalk.dim("Full pipeline (deploy → monitor → heartbeat):")}
 
         success(`Monitor "${opts.name}" created (ID: ${monitorId})`);
         if (pushToken) {
+          const instanceUrl = getInstanceConfig(instanceName)?.url ?? "";
           console.log(`   Push token: ${chalk.cyan(pushToken)}`);
-          console.log(`   Push URL:   ${chalk.dim(`${config!.url}/api/push/${pushToken}`)}`);
+          console.log(`   Push URL:   ${chalk.dim(`${instanceUrl}/api/push/${pushToken}`)}`);
         }
         if (opts.tag.length > 0) {
           const applied = opts.tag.filter((t) => !tagWarnings.some((w) => w.includes(t)));
@@ -460,6 +557,7 @@ ${chalk.dim("Full pipeline (deploy → monitor → heartbeat):")}
     .option("--active", "Resume the monitor (mark as active)")
     .option("--no-active", "Pause the monitor (mark as inactive)")
     .option("--json", "Output as JSON ({ ok, data })")
+    .option("--instance <name>", "Target a specific instance")
     .addHelpText(
       "after",
       `
@@ -480,11 +578,9 @@ ${chalk.dim("Examples:")}
           interval?: string;
           active?: boolean;
           json?: boolean;
+          instance?: string;
         }
       ) => {
-        const config = getConfig();
-        if (!config) requireAuth(opts);
-
         const json = isJsonMode(opts);
         const monitorId = parseInt(id, 10);
         if (isNaN(monitorId)) {
@@ -505,10 +601,7 @@ ${chalk.dim("Examples:")}
         }
 
         try {
-          const client = await createAuthenticatedClient(
-            config!.url,
-            config!.token
-          );
+          const { client } = await resolveClient(opts);
 
           const monitorMap = await client.getMonitorList();
           const existing = monitorMap[String(monitorId)];
@@ -575,6 +668,7 @@ ${chalk.dim("Examples:")}
     .description("Permanently delete a monitor and all its history")
     .option("--force", "Skip the confirmation prompt")
     .option("--json", "Output as JSON ({ ok, data }) — skips confirmation prompt")
+    .option("--instance <name>", "Target a specific instance")
     .addHelpText(
       "after",
       `
@@ -586,10 +680,7 @@ ${chalk.dim("Examples:")}
 ${chalk.dim("Note:")} This action is irreversible. All heartbeat history is deleted.
 `
     )
-    .action(async (id: string, opts: { force?: boolean; json?: boolean }) => {
-      const config = getConfig();
-      if (!config) requireAuth(opts);
-
+    .action(async (id: string, opts: { force?: boolean; json?: boolean; instance?: string }) => {
       const json = isJsonMode(opts);
 
       try {
@@ -607,10 +698,7 @@ ${chalk.dim("Note:")} This action is irreversible. All heartbeat history is dele
           }
         }
 
-        const client = await createAuthenticatedClient(
-          config!.url,
-          config!.token
-        );
+        const { client } = await resolveClient(opts);
         await client.deleteMonitor(parseInt(id, 10));
         client.disconnect();
 
@@ -629,6 +717,7 @@ ${chalk.dim("Note:")} This action is irreversible. All heartbeat history is dele
     .command("pause <id>")
     .description("Pause a monitor — stops checks without deleting it")
     .option("--json", "Output as JSON ({ ok, data })")
+    .option("--instance <name>", "Target a specific instance")
     .addHelpText(
       "after",
       `
@@ -637,17 +726,11 @@ ${chalk.dim("Examples:")}
   ${chalk.cyan("kuma monitors pause 42 --json")}
 `
     )
-    .action(async (id: string, opts: { json?: boolean }) => {
-      const config = getConfig();
-      if (!config) requireAuth(opts);
-
+    .action(async (id: string, opts: { json?: boolean; instance?: string }) => {
       const json = isJsonMode(opts);
 
       try {
-        const client = await createAuthenticatedClient(
-          config!.url,
-          config!.token
-        );
+        const { client } = await resolveClient(opts);
         await client.pauseMonitor(parseInt(id, 10));
         client.disconnect();
 
@@ -666,6 +749,7 @@ ${chalk.dim("Examples:")}
     .command("resume <id>")
     .description("Resume checks for a paused monitor")
     .option("--json", "Output as JSON ({ ok, data })")
+    .option("--instance <name>", "Target a specific instance")
     .addHelpText(
       "after",
       `
@@ -674,17 +758,11 @@ ${chalk.dim("Examples:")}
   ${chalk.cyan("kuma monitors resume 42 --json")}
 `
     )
-    .action(async (id: string, opts: { json?: boolean }) => {
-      const config = getConfig();
-      if (!config) requireAuth(opts);
-
+    .action(async (id: string, opts: { json?: boolean; instance?: string }) => {
       const json = isJsonMode(opts);
 
       try {
-        const client = await createAuthenticatedClient(
-          config!.url,
-          config!.token
-        );
+        const { client } = await resolveClient(opts);
         await client.resumeMonitor(parseInt(id, 10));
         client.disconnect();
 
@@ -706,6 +784,7 @@ ${chalk.dim("Examples:")}
     .option("--status <status>", "Pause all monitors with this status: up, down, pending, maintenance")
     .option("--dry-run", "Preview which monitors would be paused without pausing them")
     .option("--json", "Output as JSON ({ ok, data })")
+    .option("--instance <name>", "Target a specific instance")
     .addHelpText(
       "after",
       `
@@ -718,10 +797,7 @@ ${chalk.dim("CI/CD usage:")}
   ${chalk.cyan("kuma monitors bulk-pause --tag Production && ./deploy.sh && kuma monitors bulk-resume --tag Production")}
 `
     )
-    .action(async (opts: { tag?: string; status?: string; dryRun?: boolean; json?: boolean }) => {
-      const config = getConfig();
-      if (!config) requireAuth(opts);
-
+    .action(async (opts: { tag?: string; status?: string; dryRun?: boolean; json?: boolean; instance?: string }) => {
       const json = isJsonMode(opts);
 
       if (!opts.tag && !opts.status) {
@@ -731,7 +807,7 @@ ${chalk.dim("CI/CD usage:")}
       const STATUS_MAP: Record<string, number> = { down: 0, up: 1, pending: 2, maintenance: 3 };
 
       try {
-        const client = await createAuthenticatedClient(config!.url, config!.token);
+        const { client } = await resolveClient(opts);
         const monitorMap = await client.getMonitorList();
         const all = Object.values(monitorMap);
 
@@ -794,6 +870,7 @@ ${chalk.dim("CI/CD usage:")}
     .option("--status <status>", "Resume all monitors with this status: up, down, pending, maintenance")
     .option("--dry-run", "Preview which monitors would be resumed without resuming them")
     .option("--json", "Output as JSON ({ ok, data })")
+    .option("--instance <name>", "Target a specific instance")
     .addHelpText(
       "after",
       `
@@ -803,10 +880,7 @@ ${chalk.dim("Examples:")}
   ${chalk.cyan("kuma monitors bulk-resume --tag Production --json")}
 `
     )
-    .action(async (opts: { tag?: string; status?: string; dryRun?: boolean; json?: boolean }) => {
-      const config = getConfig();
-      if (!config) requireAuth(opts);
-
+    .action(async (opts: { tag?: string; status?: string; dryRun?: boolean; json?: boolean; instance?: string }) => {
       const json = isJsonMode(opts);
 
       if (!opts.tag && !opts.status) {
@@ -816,7 +890,7 @@ ${chalk.dim("Examples:")}
       const STATUS_MAP: Record<string, number> = { down: 0, up: 1, pending: 2, maintenance: 3 };
 
       try {
-        const client = await createAuthenticatedClient(config!.url, config!.token);
+        const { client } = await resolveClient(opts);
         const monitorMap = await client.getMonitorList();
         const all = Object.values(monitorMap);
 
@@ -878,6 +952,7 @@ ${chalk.dim("Examples:")}
     .requiredOption("--notification-id <nid>", "ID of the notification channel to assign")
     .option("--remove", "Remove the notification instead of assigning it")
     .option("--json", "Output as JSON ({ ok, data })")
+    .option("--instance <name>", "Target a specific instance")
     .addHelpText(
       "after",
       `
@@ -892,11 +967,8 @@ ${chalk.dim("Bulk assign via pipe:")}
     )
     .action(async (
       id: string,
-      opts: { notificationId: string; remove?: boolean; json?: boolean }
+      opts: { notificationId: string; remove?: boolean; json?: boolean; instance?: string }
     ) => {
-      const config = getConfig();
-      if (!config) requireAuth(opts);
-
       const json = isJsonMode(opts);
       const monitorId = parseInt(id, 10);
       const notifId = parseInt(opts.notificationId, 10);
@@ -909,7 +981,7 @@ ${chalk.dim("Bulk assign via pipe:")}
       }
 
       try {
-        const client = await createAuthenticatedClient(config!.url, config!.token);
+        const { client } = await resolveClient(opts);
         const monitorMap = await client.getMonitorList();
         await client.setMonitorNotification(
           monitorId,

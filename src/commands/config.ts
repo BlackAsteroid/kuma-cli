@@ -1,7 +1,7 @@
 import { Command } from "commander";
-import { createAuthenticatedClient, Monitor, Notification } from "../client.js";
-import { getConfig } from "../config.js";
-import { handleError, requireAuth } from "../utils/errors.js";
+import { Monitor, Notification } from "../client.js";
+import { resolveClient } from "../instance-manager.js";
+import { handleError } from "../utils/errors.js";
 import { isJsonMode, jsonOut, success, warn, error } from "../utils/output.js";
 import { readFileSync, writeFileSync } from "fs";
 import yaml from "js-yaml";
@@ -27,14 +27,12 @@ export function configCommand(program: Command): void {
     .option("--tag <tag>", "Export only monitors with this tag")
     .option("--output <file>", "Output file path (JSON or YAML) or '-' for stdout", "-")
     .option("--json", "Output as JSON ({ ok, data })")
-    .action(async (opts: { tag?: string; output: string; json?: boolean }) => {
-      const config = getConfig();
-      if (!config) requireAuth(opts);
-
+    .option("--instance <name>", "Target a specific instance")
+    .action(async (opts: { tag?: string; output: string; json?: boolean; instance?: string }) => {
       const json = isJsonMode(opts);
 
       try {
-        const client = await createAuthenticatedClient(config!.url, config!.token);
+        const { client } = await resolveClient(opts);
         const monitorMap = await client.getMonitorList();
         const allMonitors = Object.values(monitorMap);
         const allNotifications = await client.getNotificationList();
@@ -123,10 +121,8 @@ export function configCommand(program: Command): void {
     .option("--on-conflict <action>", "What to do if monitor exists by name: skip, update", "skip")
     .option("--dry-run", "Preview what would be created/updated without saving")
     .option("--json", "Output as JSON ({ ok, data })")
-    .action(async (file: string, opts: { onConflict: string; dryRun?: boolean; json?: boolean }) => {
-      const config = getConfig();
-      if (!config) requireAuth(opts);
-
+    .option("--instance <name>", "Target a specific instance")
+    .action(async (file: string, opts: { onConflict: string; dryRun?: boolean; json?: boolean; instance?: string }) => {
       const json = isJsonMode(opts);
 
       try {
@@ -142,7 +138,7 @@ export function configCommand(program: Command): void {
           throw new Error("Invalid export file format");
         }
 
-        const client = await createAuthenticatedClient(config!.url, config!.token);
+        const { client } = await resolveClient(opts);
         const existingMonitors = Object.values(await client.getMonitorList());
         const existingMap = new Map(existingMonitors.map((m) => [m.name, m]));
 

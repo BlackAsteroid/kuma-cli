@@ -1,9 +1,9 @@
 import { Command } from "commander";
 import chalk from "chalk";
-import { createAuthenticatedClient } from "../client.js";
-import { getConfig } from "../config.js";
+import { getInstanceConfig } from "../config.js";
+import { resolveClient } from "../instance-manager.js";
 import { createTable, isJsonMode, jsonOut } from "../utils/output.js";
-import { handleError, requireAuth } from "../utils/errors.js";
+import { handleError } from "../utils/errors.js";
 
 export function statusPagesCommand(program: Command): void {
   const sp = program
@@ -22,6 +22,7 @@ ${chalk.dim("Run")} ${chalk.cyan("kuma status-pages <subcommand> --help")} ${cha
   sp.command("list")
     .description("List all status pages with title, slug, and published state")
     .option("--json", "Output as JSON ({ ok, data })")
+    .option("--instance <name>", "Target a specific instance")
     .addHelpText(
       "after",
       `
@@ -31,17 +32,12 @@ ${chalk.dim("Examples:")}
   ${chalk.cyan("kuma status-pages list --json | jq '.data[] | select(.published) | .slug'")}
 `
     )
-    .action(async (opts: { json?: boolean }) => {
-      const config = getConfig();
-      if (!config) requireAuth(opts);
-
+    .action(async (opts: { json?: boolean; instance?: string }) => {
       const json = isJsonMode(opts);
 
       try {
-        const client = await createAuthenticatedClient(
-          config!.url,
-          config!.token
-        );
+        const { client, instanceName } = await resolveClient(opts);
+        const instanceUrl = getInstanceConfig(instanceName)?.url ?? "";
         const pages = await client.getStatusPageList();
         client.disconnect();
 
@@ -59,7 +55,7 @@ ${chalk.dim("Examples:")}
         const table = createTable(["ID", "Title", "Slug", "Published", "URL"]);
 
         list.forEach((page) => {
-          const url = `${config!.url}/status/${page.slug}`;
+          const url = `${instanceUrl}/status/${page.slug}`;
           table.push([
             String(page.id),
             page.title,

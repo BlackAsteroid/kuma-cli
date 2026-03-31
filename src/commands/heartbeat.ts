@@ -1,6 +1,6 @@
 import { Command } from "commander";
-import { createAuthenticatedClient } from "../client.js";
-import { getConfig } from "../config.js";
+import { getConfig, getInstanceConfig } from "../config.js";
+import { resolveClient } from "../instance-manager.js";
 import {
   createTable,
   statusLabel,
@@ -11,7 +11,7 @@ import {
   jsonError,
   success,
 } from "../utils/output.js";
-import { handleError, requireAuth, EXIT_CODES } from "../utils/errors.js";
+import { handleError, EXIT_CODES } from "../utils/errors.js";
 import chalk from "chalk";
 
 export function heartbeatCommand(program: Command): void {
@@ -35,6 +35,7 @@ ${chalk.dim("Run")} ${chalk.cyan("kuma heartbeat <subcommand> --help")} ${chalk.
     .description("View recent heartbeats (check results) for a monitor")
     .option("--limit <n>", "Maximum number of heartbeats to display (default: 20)", "20")
     .option("--json", "Output as JSON ({ ok, data })")
+    .option("--instance <name>", "Target a specific instance")
     .addHelpText(
       "after",
       `
@@ -45,10 +46,7 @@ ${chalk.dim("Examples:")}
   ${chalk.cyan("kuma heartbeat view 42 --json | jq '.data[] | select(.status == 0)'")}
 `
     )
-    .action(async (monitorId: string, opts: { limit?: string; json?: boolean }) => {
-      const config = getConfig();
-      if (!config) requireAuth(opts);
-
+    .action(async (monitorId: string, opts: { limit?: string; json?: boolean; instance?: string }) => {
       const json = isJsonMode(opts);
 
       const parsedMonitorId = parseInt(monitorId, 10);
@@ -57,7 +55,7 @@ ${chalk.dim("Examples:")}
       }
 
       try {
-        const client = await createAuthenticatedClient(config!.url, config!.token);
+        const { client } = await resolveClient(opts);
         const heartbeats = await client.getHeartbeatList(parsedMonitorId);
         client.disconnect();
 
@@ -98,6 +96,7 @@ ${chalk.dim("Examples:")}
     .option("--msg <message>", "Optional status message")
     .option("--ping <ms>", "Optional response time in milliseconds")
     .option("--url <url>", "Kuma base URL (defaults to saved login URL)")
+    .option("--instance <name>", "Target a specific instance")
     .option("--json", "Output as JSON ({ ok, data })")
     .addHelpText(
       "after",
@@ -126,6 +125,7 @@ ${chalk.dim("Finding your push token:")}
       msg?: string;
       ping?: string;
       url?: string;
+      instance?: string;
       json?: boolean;
     }) => {
       const json = isJsonMode(opts);
@@ -152,14 +152,25 @@ ${chalk.dim("Finding your push token:")}
       // Determine base URL
       let baseUrl = opts.url;
       if (!baseUrl) {
-        const config = getConfig();
-        if (!config) {
-          const msg = "No --url specified and not logged in. Run: kuma login <url> or pass --url";
-          if (json) jsonError(msg, EXIT_CODES.AUTH);
-          console.error(chalk.red(`❌ ${msg}`));
-          process.exit(EXIT_CODES.AUTH);
+        if (opts.instance) {
+          const inst = getInstanceConfig(opts.instance);
+          if (!inst) {
+            const msg = `Instance "${opts.instance}" not found. Run: kuma instance list`;
+            if (json) jsonError(msg, EXIT_CODES.AUTH);
+            console.error(chalk.red(`❌ ${msg}`));
+            process.exit(EXIT_CODES.AUTH);
+          }
+          baseUrl = inst.url;
+        } else {
+          const config = getConfig();
+          if (!config) {
+            const msg = "No --url specified and not logged in. Run: kuma login <url> or pass --url";
+            if (json) jsonError(msg, EXIT_CODES.AUTH);
+            console.error(chalk.red(`❌ ${msg}`));
+            process.exit(EXIT_CODES.AUTH);
+          }
+          baseUrl = config.url;
         }
-        baseUrl = config.url;
       }
 
       // Build the push URL

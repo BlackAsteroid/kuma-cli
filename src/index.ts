@@ -7,7 +7,10 @@ import { statusPagesCommand } from "./commands/status-pages.js";
 import { upgradeCommand } from "./commands/upgrade.js";
 import { notificationsCommand } from "./commands/notifications.js";
 import { configCommand } from "./commands/config.js";
-import { getConfig, getConfigPath } from "./config.js";
+import { instancesCommand } from "./commands/instances.js";
+import { useCommand } from "./commands/use.js";
+import { clusterCommand } from "./commands/cluster.js";
+import { getConfig, getConfigPath, getAllInstances, getAllClusters, getActiveContext, getInstanceConfig, getInstanceCluster } from "./config.js";
 import chalk from "chalk";
 import { isJsonMode, jsonOut } from "./utils/output.js";
 
@@ -46,6 +49,20 @@ ${chalk.bold("Exit codes:")}
   ${chalk.yellow("3")}  Not found
   ${chalk.yellow("4")}  Auth error (session expired — run ${chalk.cyan("kuma login")} again)
 
+${chalk.bold("Multi-Instance:")}
+  ${chalk.cyan("kuma login https://kuma1.example.com --as server1")}   Save as named instance
+  ${chalk.cyan("kuma login https://kuma2.example.com --as server2")}   Save another instance
+  ${chalk.cyan("kuma instances list")}                                 List all saved instances
+  ${chalk.cyan("kuma use server1")}                                    Switch active instance
+
+${chalk.bold("Clusters:")}
+  ${chalk.dim("# Create a cluster (name is any label, --instances are login aliases)")}
+  ${chalk.cyan("kuma cluster create my-cluster --instances server1,server2 --primary server1")}
+  ${chalk.cyan("kuma cluster sync my-cluster")}              Sync monitors across cluster
+  ${chalk.cyan("kuma cluster info my-cluster")}              Show cluster details
+  ${chalk.cyan("kuma monitors list --cluster my-cluster")}   Unified view across cluster
+  ${chalk.cyan("kuma monitors list --instance server2")}     Target a specific instance
+
 ${chalk.dim("Config stored at:")} ${chalk.yellow(getConfigPath())}
 `
   );
@@ -65,30 +82,62 @@ ${chalk.dim("Examples:")}
   )
   .action((opts: { json?: boolean }) => {
     const json = isJsonMode(opts);
-    const config = getConfig();
+    const active = getActiveContext();
+    const instances = getAllInstances();
+    const clusters = getAllClusters();
+    const instanceCount = Object.keys(instances).length;
+    const clusterCount = Object.keys(clusters).length;
+    const configPath = getConfigPath();
 
-    if (!config) {
-      if (json) {
-        jsonOut({ loggedIn: false });
-      }
+    if (json) {
+      const config = getConfig();
+      return jsonOut({
+        loggedIn: !!config,
+        active: active ?? undefined,
+        url: config?.url,
+        instanceCount,
+        clusterCount,
+        configPath,
+      });
+    }
+
+    if (!active && instanceCount === 0) {
       console.log(chalk.yellow("Not logged in. Run: kuma login <url>"));
       return;
     }
 
-    if (json) {
-      jsonOut({
-        loggedIn: true,
-        url: config.url,
-        configPath: getConfigPath(),
-      });
+    if (active?.type === "instance") {
+      const inst = getInstanceConfig(active.name);
+      if (inst) {
+        console.log(chalk.green(`Active: ${active.name}`) + ` (${chalk.cyan(inst.url)})`);
+        const clusterName = getInstanceCluster(active.name);
+        if (clusterName) {
+          console.log(`         Member of cluster: ${chalk.magenta(clusterName)}`);
+        }
+      } else {
+        console.log(chalk.yellow(`Active instance '${active.name}' not found in config.`));
+      }
+    } else if (active?.type === "cluster") {
+      const cluster = clusters[active.name];
+      if (cluster) {
+        const primaryInst = getInstanceConfig(cluster.primary);
+        const primaryUrl = primaryInst ? ` (${chalk.cyan(primaryInst.url)})` : "";
+        console.log(chalk.green(`Active: cluster '${active.name}'`) + ` primary: ${cluster.primary}${primaryUrl}`);
+      } else {
+        console.log(chalk.yellow(`Active cluster '${active.name}' not found in config.`));
+      }
+    } else if (instanceCount === 1) {
+      const name = Object.keys(instances)[0];
+      const inst = instances[name];
+      console.log(chalk.green(`Active: ${name}`) + ` (${chalk.cyan(inst.url)})`);
+    } else {
+      console.log(chalk.yellow("No active context set. Run: kuma use <instance>"));
     }
 
-    console.log(chalk.green("✅ Logged in"));
-    console.log(`   URL:    ${chalk.cyan(config.url)}`);
-    console.log(
-      `   Token:  ${chalk.dim(config.token.slice(0, 8) + "..." + config.token.slice(-4))}`
-    );
-    console.log(`   Config: ${chalk.dim(getConfigPath())}`);
+    console.log();
+    console.log(`Instances: ${chalk.bold(String(instanceCount))}`);
+    console.log(`Clusters:  ${chalk.bold(String(clusterCount))}`);
+    console.log(`Config:    ${chalk.dim(configPath)}`);
   });
 
 // Register all commands
@@ -100,5 +149,8 @@ statusPagesCommand(program);
 upgradeCommand(program);
 notificationsCommand(program);
 configCommand(program);
+instancesCommand(program);
+useCommand(program);
+clusterCommand(program);
 
 program.parse(process.argv);

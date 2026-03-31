@@ -15,19 +15,31 @@ export function loginCommand(program: Command): void {
       "Authenticate with an Uptime Kuma instance and save the session token locally"
     )
     .option("--json", "Output as JSON ({ ok, data })")
+    .option("--as <alias>", "Save this instance under a custom alias (default: derived from hostname)")
     .addHelpText(
       "after",
       `
 ${chalk.dim("Examples:")}
   ${chalk.cyan("kuma login https://kuma.example.com")}
-  ${chalk.cyan("kuma login https://kuma.example.com --json")}
+  ${chalk.cyan("  Saves as 'kuma-example-com' (auto-derived from hostname)")}
+
+  ${chalk.cyan("kuma login https://kuma.example.com --as my-server")}
+  ${chalk.cyan("  Saves as 'my-server' (custom alias you choose)")}
+
+${chalk.dim("Multi-instance workflow:")}
+  ${chalk.cyan("kuma login https://kuma1.example.com --as server1")}
+  ${chalk.cyan("kuma login https://kuma2.example.com --as server2")}
+  ${chalk.cyan("kuma instances list")}     ${chalk.dim("# See all saved instances")}
+  ${chalk.cyan("kuma use server1")}        ${chalk.dim("# Switch active instance")}
 
 ${chalk.dim("Notes:")}
+  The --as alias is how you reference this instance in other commands
+  (e.g. --instance server1, or when creating clusters).
   Credentials are never stored — only the session token is saved.
   Token location: run ${chalk.cyan("kuma status")} to see the config path.
 `
     )
-    .action(async (url: string, opts: { json?: boolean }) => {
+    .action(async (url: string, opts: { json?: boolean; as?: string }) => {
       const json = isJsonMode(opts);
 
       try {
@@ -82,13 +94,13 @@ ${chalk.dim("Notes:")}
           process.exit(1);
         }
 
-        saveConfig({ url: normalizedUrl, token: result.token });
+        const instanceName = saveConfig({ url: normalizedUrl, token: result.token }, opts.as);
 
         if (json) {
-          jsonOut({ url: normalizedUrl, username });
+          jsonOut({ url: normalizedUrl, username, instanceName });
         }
 
-        success(`Logged in as ${username} → ${normalizedUrl}`);
+        success(`Logged in to ${normalizedUrl} as "${instanceName}"`);
       } catch (err) {
         handleError(err, opts);
       }
