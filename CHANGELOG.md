@@ -1,3 +1,9 @@
+## [1.5.2](https://github.com/pablofmorales/kuma-cli/compare/v1.5.1...v1.5.2) (2026-03-31)
+
+### 🐛 Bug Fixes
+
+* keep [@blackasteroid](https://github.com/blackasteroid) npm scope for publishing ([7c2fede](https://github.com/pablofmorales/kuma-cli/commit/7c2feded9e3ae98a069eb24d87ae5e7d9efbacd3))
+
 ## [1.5.1](https://github.com/pablofmorales/kuma-cli/compare/v1.5.0...v1.5.1) (2026-03-31)
 
 ### 🐛 Bug Fixes
