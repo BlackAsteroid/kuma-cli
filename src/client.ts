@@ -24,6 +24,7 @@ export interface Monitor {
   uptime?: number;
   tags?: MonitorTag[];
   notificationIDList?: Record<string, boolean>;
+  parent?: number;
   heartbeat?: {
     status: number;
     time: string;
