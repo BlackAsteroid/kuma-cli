@@ -143,7 +143,7 @@ ${chalk.dim("Examples:")}
         // instead of "latest" to reduce supply-chain attack surface.
         // If the npm registry were compromised between the GitHub check and this
         // install, a pinned version installs the exact artifact we verified.
-        execSync(`npm install -g @pablofmorales/kuma-cli@${latest}`, {
+        execSync(`npm install -g @blackasteroid/kuma-cli@${latest}`, {
           stdio: json ? "pipe" : "inherit",
         });
       } catch (err: unknown) {
