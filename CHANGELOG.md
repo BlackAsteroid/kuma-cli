@@ -1,3 +1,38 @@
+## [1.5.0](https://github.com/pablofmorales/kuma-cli/compare/v1.4.1...v1.5.0) (2026-03-31)
+
+### 🚀 Features
+
+* add --as flag to login for instance naming ([41c74dd](https://github.com/pablofmorales/kuma-cli/commit/41c74ddf8eb0e59c705d8189eb3e2e07c0cb7ae8))
+* add --instance flag to all existing commands ([00e59a9](https://github.com/pablofmorales/kuma-cli/commit/00e59a933c5ec01fbbfc20cff6ed6c9ef25003cd))
+* add cluster create, list, remove, info, and sync commands ([ac1e952](https://github.com/pablofmorales/kuma-cli/commit/ac1e9522e2fcf8057e9c7f5f6296c5c656c6b520))
+* add InstanceManager for multi-instance resolution ([a29e225](https://github.com/pablofmorales/kuma-cli/commit/a29e225915e93573b0e4512e24631709b2d27dea))
+* add instances list and remove commands ([38df694](https://github.com/pablofmorales/kuma-cli/commit/38df694f7c07cf373ec1fdb6df03b688e33507d3))
+* add unified cluster view to monitors list ([c25088b](https://github.com/pablofmorales/kuma-cli/commit/c25088b4da1e7f809bc205f80958042714d10cb3))
+* add use command for instance/cluster context switching ([0882f20](https://github.com/pablofmorales/kuma-cli/commit/0882f203326b5a4dc288ff4c82b2afccc3bd2aa1))
+* multi-instance config schema with migration ([068b1b3](https://github.com/pablofmorales/kuma-cli/commit/068b1b3aaf0b34cca8d1faa0ab54f3de19c33a23))
+* register instances/use commands and update status for multi-instance ([1d783a6](https://github.com/pablofmorales/kuma-cli/commit/1d783a63acb5629ba54368b3bee12e842ca54a08))
+* update logout for multi-instance support ([f4ee65b](https://github.com/pablofmorales/kuma-cli/commit/f4ee65bb8716a05ed69deaaf52988ebc46a2617e))
+
+### 🐛 Bug Fixes
+
+* add --instance flag to heartbeat send command ([e8f0958](https://github.com/pablofmorales/kuma-cli/commit/e8f09582d0d44f135710cff2e9b244a7452d345c))
+* handle config migration edge case with empty instances + legacy keys ([3cb94a2](https://github.com/pablofmorales/kuma-cli/commit/3cb94a21d39655813251d29b22ac248e3ac1eb15))
+* tag health monitors by name prefix and preserve instance on logout ([7073c25](https://github.com/pablofmorales/kuma-cli/commit/7073c255bf51813dc64623e1aab14b8156fefac1))
+* update repo URLs from BlackAsteroid to pablofmorales ([d2d702b](https://github.com/pablofmorales/kuma-cli/commit/d2d702b16d0282b6a19e682ab88a5a1d6635dbf9))
+
+### ⚡ Performance
+
+* reuse client connections during cluster sync ([76b9564](https://github.com/pablofmorales/kuma-cli/commit/76b95641701ea9f8cafdde0bb7f1abfb8db970cc))
+
+### 📚 Documentation
+
+* add multi-instance & cluster support design document ([8129cd2](https://github.com/pablofmorales/kuma-cli/commit/8129cd2423dd59beec749445578f00f94b0da11e))
+* add multi-instance and cluster guide to README ([19d15b7](https://github.com/pablofmorales/kuma-cli/commit/19d15b74a42119b945626b91e82e4fe36f266bde))
+* add multi-instance cluster implementation plan ([2b35609](https://github.com/pablofmorales/kuma-cli/commit/2b356095a2fcbfbb23ca682ea3f163da6f996cd3))
+* clarify cluster create help text and examples ([d39b299](https://github.com/pablofmorales/kuma-cli/commit/d39b299e2074eaa7409e7469cfb355a9a5856869))
+* improve help text clarity across all multi-instance commands ([ce24eaf](https://github.com/pablofmorales/kuma-cli/commit/ce24eaf3e6934c82d13b546d9400c47a5cbcb8ae))
+* update CLI help with multi-instance and cluster examples ([4c4da0d](https://github.com/pablofmorales/kuma-cli/commit/4c4da0d30e77453a7e7559b4e13c9b8551a6eb4e))
+
 ## [1.4.1](https://github.com/BlackAsteroid/kuma-cli/compare/v1.4.0...v1.4.1) (2026-03-26)
 
 ### 📚 Documentation
