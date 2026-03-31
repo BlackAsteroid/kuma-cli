@@ -16,13 +16,13 @@ brew install kuma-cli
 ### npm
 
 ```bash
-npm install -g @blackasteroid/kuma-cli
+npm install -g @pablofmorales/kuma-cli
 ```
 
 Or use without installing:
 
 ```bash
-npx @blackasteroid/kuma-cli login https://kuma.example.com
+npx @pablofmorales/kuma-cli login https://kuma.example.com
 ```
 
 ## Quick start
@@ -343,4 +343,4 @@ src/
 
 ## License
 
-MIT — [Black Asteroid](https://blackasteroid.com.ar)
+MIT — [pablofmorales](https://github.com/pablofmorales)

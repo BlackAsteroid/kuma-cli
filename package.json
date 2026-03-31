@@ -1,5 +1,5 @@
 {
-  "name": "@blackasteroid/kuma-cli",
+  "name": "@pablofmorales/kuma-cli",
   "version": "1.5.0",
   "description": "CLI for managing Uptime Kuma via Socket.IO API",
   "bin": {
@@ -21,7 +21,7 @@
     "cli",
     "monitoring"
   ],
-  "author": "Black Asteroid",
+  "author": "Pablo Morales",
   "license": "MIT",
   "repository": {
     "type": "git",

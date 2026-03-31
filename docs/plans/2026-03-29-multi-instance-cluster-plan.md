@@ -8,7 +8,7 @@
 
 **Tech Stack:** TypeScript, Commander.js, Socket.IO, conf library, Vitest (new, for testing).
 
-**Tracking:** https://github.com/BlackAsteroid/kuma-cli/issues/59
+**Tracking:** https://github.com/pablofmorales/kuma-cli/issues/59
 
 ---
 

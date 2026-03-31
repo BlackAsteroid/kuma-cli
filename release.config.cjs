@@ -1,5 +1,5 @@
 /**
- * semantic-release configuration for @blackasteroid/kuma-cli
+ * semantic-release configuration for @pablofmorales/kuma-cli
  *
  * Versioning rules:
  *   feat:               → minor (0.X.0)
