@@ -22,7 +22,7 @@ We will credit you in the release notes unless you prefer to remain anonymous.
 Only the latest published version on npm is actively supported. Please update before reporting.
 
 ```bash
-npm install -g @pablofmorales/kuma-cli@latest
+npm install -g @blackasteroid/kuma-cli@latest
 ```
 
 ## Known Security Considerations
@@ -54,4 +54,4 @@ npm install -g @pablofmorales/kuma-cli@latest
 
 ### Upgrade integrity
 
-- `kuma upgrade` installs the specific version confirmed from GitHub Releases (e.g., `@pablofmorales/kuma-cli@1.2.0`) rather than `@latest` to reduce exposure to supply chain attacks on the npm registry.
+- `kuma upgrade` installs the specific version confirmed from GitHub Releases (e.g., `@blackasteroid/kuma-cli@1.2.0`) rather than `@latest` to reduce exposure to supply chain attacks on the npm registry.

@@ -16,13 +16,13 @@ brew install kuma-cli
 ### npm
 
 ```bash
-npm install -g @pablofmorales/kuma-cli
+npm install -g @blackasteroid/kuma-cli
 ```
 
 Or use without installing:
 
 ```bash
-npx @pablofmorales/kuma-cli login https://kuma.example.com
+npx @blackasteroid/kuma-cli login https://kuma.example.com
 ```
 
 ## Quick start
