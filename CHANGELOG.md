@@ -1,3 +1,18 @@
+## [1.7.0](https://github.com/pablofmorales/kuma-cli/compare/v1.6.0...v1.7.0) (2026-04-02)
+
+### 🚀 Features
+
+* add interactive TUI dashboard with fullscreen monitor view ([e0ae035](https://github.com/pablofmorales/kuma-cli/commit/e0ae035a142f0151fdeffff2b716147cd8ba9663)), closes [67-#74](https://github.com/pablofmorales/67-/issues/74) [#67](https://github.com/pablofmorales/kuma-cli/issues/67) [#68](https://github.com/pablofmorales/kuma-cli/issues/68) [#69](https://github.com/pablofmorales/kuma-cli/issues/69) [#70](https://github.com/pablofmorales/kuma-cli/issues/70) [#71](https://github.com/pablofmorales/kuma-cli/issues/71) [#72](https://github.com/pablofmorales/kuma-cli/issues/72) [#73](https://github.com/pablofmorales/kuma-cli/issues/73) [#74](https://github.com/pablofmorales/kuma-cli/issues/74)
+* migrate config storage to ~/.config/kuma-cli ([3c97df5](https://github.com/pablofmorales/kuma-cli/commit/3c97df53b838e31b6eba295061af7e7df160b8e4))
+* migrate config storage to ~/.config/kuma-cli ([5cb1371](https://github.com/pablofmorales/kuma-cli/commit/5cb1371e644939ce7484716ffb9690b154d839a7))
+* TUI scaffold with Ink ([a8fc730](https://github.com/pablofmorales/kuma-cli/commit/a8fc73096a3ed54dae1d88ce714cba8cdcdd97b0))
+
+### 🐛 Bug Fixes
+
+* **esm:** replace require() and __dirname with ESM equivalents ([579a2b5](https://github.com/pablofmorales/kuma-cli/commit/579a2b5f4b359408d88ec0f672a1f28fbfacff8d))
+* send accepted_statuscodes_json as stringified array to prevent DB corruption ([74ca6be](https://github.com/pablofmorales/kuma-cli/commit/74ca6bec7a276f48c28e4f0fb62e06fb723bdc16))
+* validate GitHub release tag to prevent command injection ([b272972](https://github.com/pablofmorales/kuma-cli/commit/b2729724d6cf3cfcffcfb410476b307e6f0d054f))
+
 ## [1.6.0](https://github.com/pablofmorales/kuma-cli/compare/v1.5.2...v1.6.0) (2026-04-02)
 
 ### 🚀 Features
