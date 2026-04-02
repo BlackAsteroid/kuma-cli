@@ -28,7 +28,12 @@ export interface KumaConfigSchema {
 // --- Config path ---
 
 export function getConfigDir(): string {
-  return path.join(os.homedir(), ".config", "kuma-cli");
+  const platform = process.platform;
+  if (platform === "win32") {
+    return path.join(process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming"), "kuma-cli");
+  }
+  const configHome = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config");
+  return path.join(configHome, "kuma-cli");
 }
 
 function getConfigFilePath(): string {
@@ -88,8 +93,16 @@ function readFileOrNull(filePath: string): string | null {
 
 function writeConfigFile(data: Record<string, unknown>): void {
   const filePath = getConfigFilePath();
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
+  const dirPath = path.dirname(filePath);
+
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true, mode: 0o700 });
+  }
+
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), {
+    encoding: "utf-8",
+    mode: 0o600,
+  });
 }
 
 // --- Hostname derivation ---
