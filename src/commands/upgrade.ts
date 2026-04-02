@@ -116,6 +116,15 @@ ${chalk.dim("Examples:")}
 
       const latest = release.tag_name.replace(/^v/, "");
 
+      // Security: Strict validation of the version tag to prevent command injection.
+      // We only allow standard x.y.z semver strings.
+      if (!/^\d+\.\d+\.\d+$/.test(latest)) {
+        const msg = `Security alert: Invalid version tag received from GitHub ("${latest}"). Upgrade aborted.`;
+        if (json) jsonError(msg, 3);
+        console.error(chalk.red(`\n❌ ${msg}`));
+        process.exit(3);
+      }
+
       if (!json) console.log(chalk.green("done"));
 
       if (compareSemver(current, latest) >= 0) {
