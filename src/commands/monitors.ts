@@ -43,6 +43,7 @@ const MONITOR_TYPES = [
   "mongodb",
   "radius",
   "redis",
+  "group"
 ];
 
 export function monitorsCommand(program: Command): void {
@@ -355,6 +356,7 @@ ${chalk.dim("Examples:")}
     .option("--interval <seconds>", "How often to check, in seconds (default: 60)", "60")
     .option("--json", "Output as JSON ({ ok, data })")
     .option("--instance <name>", "Target a specific instance")
+    .option("--parent <id>", "Add as a child monitor under an existing group monitor (ID)")
     .addHelpText(
       "after",
       `
@@ -373,6 +375,7 @@ ${chalk.dim("Examples:")}
         interval?: string;
         json?: boolean;
         instance?: string;
+        parent?: string;
       }) => {
         const json = isJsonMode(opts);
 
@@ -391,24 +394,31 @@ ${chalk.dim("Examples:")}
                   },
                 ]
               : []),
-            ...(!opts.url
-              ? [
-                  {
-                    type: "input",
-                    name: "url",
-                    message: "URL or hostname:",
-                  },
-                ]
-              : []),
           ]);
 
           const name = opts.name ?? answers.name;
           const type = opts.type ?? answers.type;
-          const url = opts.url ?? answers.url;
+          let url = opts.url;
+          if (!url && type !== "group") {
+            const urlAnswer = await prompt([
+              {
+                type: "input",
+                name: "url",
+                message: "URL or hostname:",
+              },
+            ]);
+            url = urlAnswer.url;
+          }
           const interval = parseInt(opts.interval ?? "60", 10);
 
           const { client } = await resolveClient(opts);
-          const result = await client.addMonitor({ name, type, url, interval });
+          const result = await client.addMonitor({ 
+            name, 
+            type, 
+            url, 
+            interval, 
+            parent: opts.parent ? parseInt(opts.parent, 10) : undefined 
+          });
           client.disconnect();
 
           if (json) {
@@ -434,6 +444,7 @@ ${chalk.dim("Examples:")}
     .option("--notification-id <id>", "Assign a notification channel by ID (repeatable)", collectInt, [])
     .option("--json", "Output as JSON ({ ok, data }) — prints monitor ID and pushToken to stdout")
     .option("--instance <name>", "Target a specific instance")
+    .option("--parent <id>", "Create as a child monitor under an existing group monitor (ID)")
     .addHelpText(
       "after",
       `
@@ -458,6 +469,7 @@ ${chalk.dim("Full pipeline (deploy → monitor → heartbeat):")}
       notificationId: number[];
       json?: boolean;
       instance?: string;
+      parent?: string;
     }) => {
       const json = isJsonMode(opts);
       const interval = parseInt(opts.interval ?? "60", 10);
@@ -476,6 +488,7 @@ ${chalk.dim("Full pipeline (deploy → monitor → heartbeat):")}
           type: opts.type,
           url: opts.url,
           interval,
+          parent: opts.parent ? parseInt(opts.parent, 10) : undefined,
         });
         const monitorId = result.id;
         // pushToken is returned directly from addMonitor for push monitors
