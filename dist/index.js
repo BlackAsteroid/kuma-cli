@@ -2,6 +2,9 @@
 
 // src/index.ts
 import { Command } from "commander";
+import { readFileSync as readFileSync4 } from "fs";
+import { join as join3, dirname as dirname3 } from "path";
+import { fileURLToPath as fileURLToPath2 } from "url";
 
 // src/commands/login.ts
 import enquirer from "enquirer";
@@ -130,7 +133,7 @@ var KumaClient = class {
   async addMonitor(monitor) {
     const autoToken = monitor.type === "push" && !monitor.pushToken ? Array.from(crypto.getRandomValues(new Uint8Array(24))).map((b) => b.toString(16).padStart(2, "0")).join("") : void 0;
     const payload = {
-      accepted_statuscodes: ["200-299"],
+      accepted_statuscodes_json: JSON.stringify(["200-299"]),
       maxretries: 1,
       retryInterval: 60,
       conditions: [],
@@ -484,6 +487,53 @@ var KumaClient = class {
       }
     }
     return results;
+  }
+  // ---------------------------------------------------------------------------
+  // TUI real-time event subscriptions
+  // ---------------------------------------------------------------------------
+  /** Enable auto-reconnection (used by TUI dashboard for long-lived connections). */
+  enableReconnection() {
+    this.socket.io.opts.reconnection = true;
+    this.socket.io.opts.reconnectionAttempts = Infinity;
+    this.socket.io.opts.reconnectionDelay = 1e3;
+    this.socket.io.opts.reconnectionDelayMax = 3e4;
+  }
+  /** Subscribe to individual heartbeat push events. Returns unsubscribe function. */
+  onHeartbeat(callback) {
+    const handler = (data) => {
+      const hb = { id: 0, monitorID: data.monitorID, status: data.status, time: data.time, msg: data.msg, ping: data.ping };
+      this.heartbeatCache[data.monitorID] = hb;
+      callback(data.monitorID, hb);
+    };
+    this.socket.on("heartbeat", handler);
+    return () => {
+      this.socket.off("heartbeat", handler);
+    };
+  }
+  /** Subscribe to uptime percentage push events. Returns unsubscribe function. */
+  onUptime(callback) {
+    const handler = (monitorId, period, value) => {
+      this.uptimeCache[`${monitorId}_${period}`] = value;
+      callback(monitorId, period, value);
+    };
+    this.socket.on("uptime", handler);
+    return () => {
+      this.socket.off("uptime", handler);
+    };
+  }
+  /** Subscribe to disconnect events. Returns unsubscribe function. */
+  onDisconnect(callback) {
+    this.socket.on("disconnect", callback);
+    return () => {
+      this.socket.off("disconnect", callback);
+    };
+  }
+  /** Subscribe to reconnect events. Returns unsubscribe function. */
+  onReconnect(callback) {
+    this.socket.io.on("reconnect", callback);
+    return () => {
+      this.socket.io.off("reconnect", callback);
+    };
   }
   disconnect() {
     this.socket.disconnect();
@@ -1079,7 +1129,7 @@ ${chalk4.dim("Examples:")}
         for (const r of results) {
           if (r.status === "fulfilled") allMonitors.push(...r.value);
         }
-        const STATUS_PRIORITY = { 0: 0, 3: 1, 2: 2, 1: 3 };
+        const STATUS_PRIORITY2 = { 0: 0, 3: 1, 2: 2, 1: 3 };
         const deduped = /* @__PURE__ */ new Map();
         for (const m of allMonitors) {
           const key = `${m.name}|${m.type}|${m.url ?? m.hostname ?? ""}`;
@@ -1087,8 +1137,8 @@ ${chalk4.dim("Examples:")}
           if (!existing) {
             deduped.set(key, m);
           } else {
-            const existingPri = STATUS_PRIORITY[existing.heartbeat?.status ?? 2] ?? 2;
-            const newPri = STATUS_PRIORITY[m.heartbeat?.status ?? 2] ?? 2;
+            const existingPri = STATUS_PRIORITY2[existing.heartbeat?.status ?? 2] ?? 2;
+            const newPri = STATUS_PRIORITY2[m.heartbeat?.status ?? 2] ?? 2;
             if (newPri < existingPri) deduped.set(key, m);
           }
         }
@@ -1138,7 +1188,7 @@ ${clusterMonitors.length} monitor(s) total`);
       if (uptimeThreshold !== void 0 && isNaN(uptimeThreshold)) {
         handleError(new Error(`Invalid uptime threshold: ${opts.uptimeBelow}`), opts);
       }
-      const STATUS_MAP = {
+      const STATUS_MAP2 = {
         down: 0,
         up: 1,
         pending: 2,
@@ -1151,7 +1201,7 @@ ${clusterMonitors.length} monitor(s) total`);
         let list = Object.values(monitorMap);
         if (opts.status) {
           const statusKey = opts.status.toLowerCase();
-          if (!(statusKey in STATUS_MAP)) {
+          if (!(statusKey in STATUS_MAP2)) {
             if (json) {
               jsonOut({ error: `Invalid status "${opts.status}". Valid values: up, down, pending, maintenance` });
             }
@@ -1160,7 +1210,7 @@ ${clusterMonitors.length} monitor(s) total`);
             );
             process.exit(1);
           }
-          const statusNum = STATUS_MAP[statusKey];
+          const statusNum = STATUS_MAP2[statusKey];
           list = list.filter((m) => {
             if (m.heartbeat) return m.heartbeat.status === statusNum;
             if (statusNum === 2) return m.active && !m.heartbeat;
@@ -1545,7 +1595,7 @@ ${chalk4.dim("CI/CD usage:")}
     if (!opts.tag && !opts.status) {
       handleError(new Error("At least one of --tag or --status is required"), opts);
     }
-    const STATUS_MAP = { down: 0, up: 1, pending: 2, maintenance: 3 };
+    const STATUS_MAP2 = { down: 0, up: 1, pending: 2, maintenance: 3 };
     try {
       const { client } = await resolveClient(opts);
       const monitorMap = await client.getMonitorList();
@@ -1558,7 +1608,7 @@ ${chalk4.dim("CI/CD usage:")}
         );
       }
       if (opts.status) {
-        const statusNum = STATUS_MAP[opts.status.toLowerCase()];
+        const statusNum = STATUS_MAP2[opts.status.toLowerCase()];
         if (statusNum === void 0) {
           client.disconnect();
           handleError(new Error(`Invalid status "${opts.status}". Valid: up, down, pending, maintenance`), opts);
@@ -1607,7 +1657,7 @@ ${chalk4.dim("Examples:")}
     if (!opts.tag && !opts.status) {
       handleError(new Error("At least one of --tag or --status is required"), opts);
     }
-    const STATUS_MAP = { down: 0, up: 1, pending: 2, maintenance: 3 };
+    const STATUS_MAP2 = { down: 0, up: 1, pending: 2, maintenance: 3 };
     try {
       const { client } = await resolveClient(opts);
       const monitorMap = await client.getMonitorList();
@@ -1620,7 +1670,7 @@ ${chalk4.dim("Examples:")}
         );
       }
       if (opts.status) {
-        const statusNum = STATUS_MAP[opts.status.toLowerCase()];
+        const statusNum = STATUS_MAP2[opts.status.toLowerCase()];
         if (statusNum === void 0) {
           client.disconnect();
           handleError(new Error(`Invalid status "${opts.status}". Valid: up, down, pending, maintenance`), opts);
@@ -1909,19 +1959,19 @@ import { join as join2, dirname as dirname2 } from "path";
 import { fileURLToPath } from "url";
 import chalk7 from "chalk";
 function readCurrentVersion() {
-  const __dirname = dirname2(fileURLToPath(import.meta.url));
+  const __dirname2 = dirname2(fileURLToPath(import.meta.url));
   try {
-    const pkgPath = join2(__dirname, "..", "package.json");
+    const pkgPath = join2(__dirname2, "..", "package.json");
     const raw = readFileSync2(pkgPath, "utf8");
-    const pkg = JSON.parse(raw);
-    if (pkg.version) return pkg.version;
+    const pkg2 = JSON.parse(raw);
+    if (pkg2.version) return pkg2.version;
   } catch {
   }
   try {
-    const pkgPath = join2(__dirname, "package.json");
+    const pkgPath = join2(__dirname2, "package.json");
     const raw = readFileSync2(pkgPath, "utf8");
-    const pkg = JSON.parse(raw);
-    if (pkg.version) return pkg.version;
+    const pkg2 = JSON.parse(raw);
+    if (pkg2.version) return pkg2.version;
   } catch {
   }
   return "unknown";
@@ -2446,66 +2496,6 @@ function configCommand(program2) {
   });
 }
 
-// src/commands/dashboard.ts
-import React2 from "react";
-import { render } from "ink";
-
-// src/tui/Dashboard.tsx
-import React, { useState, useEffect } from "react";
-import { Box, Text, useInput, useApp } from "ink";
-var Dashboard = ({ instanceName, url }) => {
-  const { exit } = useApp();
-  const [status, setStatus] = useState("connecting");
-  useInput((input, key) => {
-    if (input === "q" || input === "c" && key.ctrl) {
-      exit();
-    }
-  });
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setStatus("connected");
-    }, 1e3);
-    return () => clearTimeout(timer);
-  }, []);
-  return /* @__PURE__ */ React.createElement(Box, { flexDirection: "column", minHeight: 10 }, /* @__PURE__ */ React.createElement(Box, { borderStyle: "round", paddingX: 1, justifyContent: "space-between" }, /* @__PURE__ */ React.createElement(Box, null, /* @__PURE__ */ React.createElement(Text, { bold: true, color: "cyan" }, "Kuma Dashboard"), /* @__PURE__ */ React.createElement(Text, { dimColor: true }, " | "), /* @__PURE__ */ React.createElement(Text, null, instanceName), /* @__PURE__ */ React.createElement(Text, { dimColor: true }, " (", url, ")")), /* @__PURE__ */ React.createElement(Box, null, /* @__PURE__ */ React.createElement(Text, { color: status === "connected" ? "green" : "yellow" }, status.toUpperCase()))), /* @__PURE__ */ React.createElement(Box, { flexGrow: 1, paddingX: 1, paddingTop: 1, flexDirection: "column" }, /* @__PURE__ */ React.createElement(Text, null, "Welcome to the Uptime Kuma TUI dashboard!"), /* @__PURE__ */ React.createElement(Box, { marginTop: 1 }, /* @__PURE__ */ React.createElement(Text, { dimColor: true }, "This is a scaffold for the real-time monitoring interface."))), /* @__PURE__ */ React.createElement(Box, { borderStyle: "round", paddingX: 1 }, /* @__PURE__ */ React.createElement(Text, { dimColor: true }, "Press ", /* @__PURE__ */ React.createElement(Text, { color: "yellow" }, "q"), " to quit \u2022 ", /* @__PURE__ */ React.createElement(Text, { color: "yellow" }, "Ctrl+C"), " to exit")));
-};
-
-// src/commands/dashboard.ts
-import chalk10 from "chalk";
-function dashboardCommand(program2) {
-  program2.command("dashboard").description("Launch the real-time TUI dashboard").action(async () => {
-    const active = getActiveContext();
-    if (!active) {
-      console.error(chalk10.red("Error: No active instance. Run 'kuma login' or 'kuma use' first."));
-      process.exit(1);
-    }
-    let instanceName = "";
-    if (active.type === "instance") {
-      instanceName = active.name;
-    } else {
-      const clusters = getAllClusters();
-      const cluster = clusters[active.name];
-      if (!cluster) {
-        console.error(chalk10.red(`Error: Cluster '${active.name}' not found.`));
-        process.exit(1);
-      }
-      instanceName = cluster.primary;
-    }
-    const instance = getInstanceConfig(instanceName);
-    if (!instance) {
-      console.error(chalk10.red(`Error: Instance '${instanceName}' not found.`));
-      process.exit(1);
-    }
-    const { waitUntilExit } = render(
-      React2.createElement(Dashboard, {
-        instanceName,
-        url: instance.url
-      })
-    );
-    await waitUntilExit();
-  });
-}
-
 // src/commands/instances.ts
 function instancesCommand(program2) {
   const instances = program2.command("instances").description("Manage saved Uptime Kuma instances (added via kuma login --as <alias>)");
@@ -2571,21 +2561,21 @@ function instancesCommand(program2) {
 }
 
 // src/commands/use.ts
-import chalk11 from "chalk";
+import chalk10 from "chalk";
 function useCommand(program2) {
   program2.command("use [name]").description("Switch the active instance or cluster (affects all subsequent commands)").option("--cluster <name>", "Set a cluster as active context (commands default to its primary instance)").option("--json", "Output as JSON").addHelpText(
     "after",
     `
-${chalk11.dim("Arguments:")}
-  ${chalk11.cyan("[name]")}  The alias of an instance (as set with ${chalk11.cyan("kuma login --as <alias>")})
+${chalk10.dim("Arguments:")}
+  ${chalk10.cyan("[name]")}  The alias of an instance (as set with ${chalk10.cyan("kuma login --as <alias>")})
 
-${chalk11.dim("Examples:")}
-  ${chalk11.cyan("kuma use server1")}                  ${chalk11.dim("# Switch to instance 'server1'")}
-  ${chalk11.cyan("kuma use --cluster my-cluster")}     ${chalk11.dim("# Switch to cluster (uses its primary)")}
-  ${chalk11.cyan("kuma instances list")}               ${chalk11.dim("# See available instance aliases")}
-  ${chalk11.cyan("kuma cluster list")}                 ${chalk11.dim("# See available cluster names")}
+${chalk10.dim("Examples:")}
+  ${chalk10.cyan("kuma use server1")}                  ${chalk10.dim("# Switch to instance 'server1'")}
+  ${chalk10.cyan("kuma use --cluster my-cluster")}     ${chalk10.dim("# Switch to cluster (uses its primary)")}
+  ${chalk10.cyan("kuma instances list")}               ${chalk10.dim("# See available instance aliases")}
+  ${chalk10.cyan("kuma cluster list")}                 ${chalk10.dim("# See available cluster names")}
 
-${chalk11.dim("Once active, all commands target that instance unless overridden with --instance or --cluster.")}
+${chalk10.dim("Once active, all commands target that instance unless overridden with --instance or --cluster.")}
 `
   ).action((name, opts) => {
     if (opts.cluster) {
@@ -2623,28 +2613,28 @@ ${chalk11.dim("Once active, all commands target that instance unless overridden 
 }
 
 // src/commands/cluster.ts
-import chalk12 from "chalk";
+import chalk11 from "chalk";
 function clusterCommand(program2) {
   const cluster = program2.command("cluster").description("Manage clusters of Uptime Kuma instances for high availability");
   cluster.command("create <name>").description("Create a cluster from existing instances").requiredOption("--instances <names>", "Comma-separated instance aliases (from kuma login --as)").requiredOption("--primary <name>", "Instance alias to use as the primary (source of truth)").option("--json", "Output as JSON").addHelpText(
     "after",
     `
-${chalk12.dim("Arguments:")}
-  ${chalk12.cyan("<name>")}  Any label you choose for this cluster (e.g. "ha-group", "prod-backup")
+${chalk11.dim("Arguments:")}
+  ${chalk11.cyan("<name>")}  Any label you choose for this cluster (e.g. "ha-group", "prod-backup")
 
-${chalk12.dim("How it works:")}
+${chalk11.dim("How it works:")}
   1. First, login to each Uptime Kuma server and give it an alias:
-     ${chalk12.cyan("kuma login https://kuma1.example.com --as server1")}
-     ${chalk12.cyan("kuma login https://kuma2.example.com --as server2")}
+     ${chalk11.cyan("kuma login https://kuma1.example.com --as server1")}
+     ${chalk11.cyan("kuma login https://kuma2.example.com --as server2")}
 
   2. Then create a cluster using those aliases:
-     ${chalk12.cyan("kuma cluster create my-cluster --instances server1,server2 --primary server1")}
+     ${chalk11.cyan("kuma cluster create my-cluster --instances server1,server2 --primary server1")}
 
   3. Sync the primary's monitors to all secondaries:
-     ${chalk12.cyan("kuma cluster sync my-cluster")}
+     ${chalk11.cyan("kuma cluster sync my-cluster")}
 
-${chalk12.dim("The --primary is the source of truth \u2014 its monitors and notifications")}
-${chalk12.dim("will be replicated to the other instances during sync.")}
+${chalk11.dim("The --primary is the source of truth \u2014 its monitors and notifications")}
+${chalk11.dim("will be replicated to the other instances during sync.")}
 `
   ).action((name, opts) => {
     const instanceNames = opts.instances.split(",").map((s) => s.trim());
@@ -2777,21 +2767,21 @@ ${chalk12.dim("will be replicated to the other instances during sync.")}
   cluster.command("sync <name>").description("Sync monitors and notifications from the primary instance to all secondaries").option("--dry-run", "Show what would be synced without making changes").option("--json", "Output as JSON").addHelpText(
     "after",
     `
-${chalk12.dim("Arguments:")}
-  ${chalk12.cyan("<name>")}  The cluster name (as created with ${chalk12.cyan("kuma cluster create")})
+${chalk11.dim("Arguments:")}
+  ${chalk11.cyan("<name>")}  The cluster name (as created with ${chalk11.cyan("kuma cluster create")})
 
-${chalk12.dim("What gets synced:")}
-  1. ${chalk12.bold("Monitors")} from the primary are replicated to each secondary.
+${chalk11.dim("What gets synced:")}
+  1. ${chalk11.bold("Monitors")} from the primary are replicated to each secondary.
      Existing monitors (matched by name + type + URL) are skipped.
-  2. ${chalk12.bold("Health monitors")} are created so each instance checks the others.
-  3. ${chalk12.bold("Notifications")} are copied to secondaries but ${chalk12.yellow("kept disabled")}
+  2. ${chalk11.bold("Health monitors")} are created so each instance checks the others.
+  3. ${chalk11.bold("Notifications")} are copied to secondaries but ${chalk11.yellow("kept disabled")}
      to avoid duplicate alerts. The primary owns active notifications.
 
-${chalk12.dim("Examples:")}
-  ${chalk12.cyan("kuma cluster sync my-cluster --dry-run")}   ${chalk12.dim("# Preview without changes")}
-  ${chalk12.cyan("kuma cluster sync my-cluster")}             ${chalk12.dim("# Run the actual sync")}
+${chalk11.dim("Examples:")}
+  ${chalk11.cyan("kuma cluster sync my-cluster --dry-run")}   ${chalk11.dim("# Preview without changes")}
+  ${chalk11.cyan("kuma cluster sync my-cluster")}             ${chalk11.dim("# Run the actual sync")}
 
-${chalk12.dim("Sync is idempotent \u2014 safe to run multiple times.")}
+${chalk11.dim("Sync is idempotent \u2014 safe to run multiple times.")}
 `
   ).action(async (name, opts) => {
     const clusterConfig = getClusterConfig(name);
@@ -2966,60 +2956,1687 @@ ${chalk12.dim("Sync is idempotent \u2014 safe to run multiple times.")}
   });
 }
 
+// src/tui/render.tsx
+import { render } from "ink";
+
+// src/tui/app.tsx
+import { useState as useState10, useCallback as useCallback5, useEffect as useEffect4 } from "react";
+import { Box as Box13, Text as Text14, useApp, useInput as useInput7 } from "ink";
+
+// src/tui/components/header.tsx
+import { Box, Text } from "ink";
+import { Fragment, jsx, jsxs } from "react/jsx-runtime";
+var LOGO = [
+  " _  ___   _ __  __    _      ___ _    ___ ",
+  "| |/ / | | |  \\/  |  /_\\    / __| |  |_ _|",
+  "| ' <| |_| | |\\/| | / _ \\  | (__| |__ | | ",
+  "|_|\\_\\\\___/|_|  |_|/_/ \\_\\  \\___|____|___|"
+];
+var STATUS_NAMES = {
+  0: "DOWN",
+  1: "UP",
+  2: "PENDING",
+  3: "MAINTENANCE"
+};
+function Header({
+  instanceName,
+  connected,
+  monitors,
+  searchQuery,
+  statusFilter,
+  filteredCount
+}) {
+  const total = monitors.length;
+  const up = monitors.filter((m) => m.status === 1).length;
+  const down = monitors.filter((m) => m.status === 0).length;
+  const pending = monitors.filter((m) => m.status === 2).length;
+  const maint = monitors.filter((m) => m.status === 3).length;
+  const hasFilters = searchQuery !== void 0 && searchQuery !== "" || statusFilter !== void 0 && statusFilter !== null;
+  return /* @__PURE__ */ jsxs(Box, { flexDirection: "column", marginBottom: 1, children: [
+    /* @__PURE__ */ jsx(Box, { flexDirection: "column", children: LOGO.map((line, i) => /* @__PURE__ */ jsx(Text, { color: "#db2777", bold: true, children: line }, i)) }),
+    /* @__PURE__ */ jsxs(Box, { marginTop: 1, children: [
+      /* @__PURE__ */ jsx(Text, { bold: true, children: instanceName }),
+      /* @__PURE__ */ jsx(Text, { children: " " }),
+      connected ? /* @__PURE__ */ jsx(Text, { color: "green", children: "[connected]" }) : /* @__PURE__ */ jsx(Text, { color: "red", children: "[disconnected]" })
+    ] }),
+    /* @__PURE__ */ jsx(Box, { children: hasFilters && filteredCount !== void 0 ? /* @__PURE__ */ jsxs(Text, { children: [
+      filteredCount,
+      " of ",
+      total,
+      " monitors (filtered)"
+    ] }) : /* @__PURE__ */ jsxs(Fragment, { children: [
+      /* @__PURE__ */ jsxs(Text, { children: [
+        total,
+        " monitors: "
+      ] }),
+      /* @__PURE__ */ jsxs(Text, { color: "green", children: [
+        up,
+        " up"
+      ] }),
+      /* @__PURE__ */ jsx(Text, { children: ", " }),
+      /* @__PURE__ */ jsxs(Text, { color: "red", children: [
+        down,
+        " down"
+      ] }),
+      pending > 0 && /* @__PURE__ */ jsxs(Fragment, { children: [
+        /* @__PURE__ */ jsx(Text, { children: ", " }),
+        /* @__PURE__ */ jsxs(Text, { color: "yellow", children: [
+          pending,
+          " pending"
+        ] })
+      ] }),
+      maint > 0 && /* @__PURE__ */ jsxs(Fragment, { children: [
+        /* @__PURE__ */ jsx(Text, { children: ", " }),
+        /* @__PURE__ */ jsxs(Text, { color: "gray", children: [
+          maint,
+          " maintenance"
+        ] })
+      ] })
+    ] }) }),
+    hasFilters && /* @__PURE__ */ jsxs(Box, { children: [
+      /* @__PURE__ */ jsx(Text, { dimColor: true, children: "Active filters: " }),
+      searchQuery && /* @__PURE__ */ jsxs(Text, { color: "yellow", children: [
+        'search="',
+        searchQuery,
+        '" '
+      ] }),
+      statusFilter !== null && statusFilter !== void 0 && /* @__PURE__ */ jsxs(Text, { color: "yellow", children: [
+        "status=",
+        STATUS_NAMES[statusFilter] ?? "UNKNOWN"
+      ] })
+    ] })
+  ] });
+}
+
+// src/tui/components/footer.tsx
+import { Box as Box2, Text as Text2 } from "ink";
+import { jsx as jsx2, jsxs as jsxs2 } from "react/jsx-runtime";
+function Footer({ view, mode, selectedStatus }) {
+  if (view === "detail") {
+    return /* @__PURE__ */ jsx2(Box2, { marginTop: 1, children: /* @__PURE__ */ jsx2(Text2, { dimColor: true, children: "Esc=back  r=refresh  i=instances  c=clusters  q=quit" }) });
+  }
+  if (mode === "search") {
+    return /* @__PURE__ */ jsx2(Box2, { marginTop: 1, children: /* @__PURE__ */ jsx2(Text2, { dimColor: true, children: "Enter=confirm  Esc=clear and close" }) });
+  }
+  if (mode === "filter-menu") {
+    return /* @__PURE__ */ jsx2(Box2, { marginTop: 1, children: /* @__PURE__ */ jsx2(Text2, { dimColor: true, children: "j/k=navigate  Enter=select  Esc=cancel" }) });
+  }
+  const isPaused = selectedStatus === 3;
+  return /* @__PURE__ */ jsx2(Box2, { marginTop: 1, children: /* @__PURE__ */ jsxs2(Text2, { dimColor: true, children: [
+    "q=quit  j/k=navigate  Enter=detail  r=refresh  /=search  f=filter",
+    isPaused ? "  u=resume" : "  p=pause",
+    "  d=delete  i=instances  c=clusters  h=help  Esc=clear"
+  ] }) });
+}
+
+// src/tui/components/monitor-table.tsx
+import { useState, useEffect } from "react";
+import { Box as Box3, Text as Text4 } from "ink";
+
+// src/tui/components/status-badge.tsx
+import { Text as Text3 } from "ink";
+import { jsx as jsx3 } from "react/jsx-runtime";
+var STATUS_MAP = {
+  0: { label: "DOWN", color: "red" },
+  1: { label: "UP", color: "green" },
+  2: { label: "PENDING", color: "yellow" },
+  3: { label: "MAINT", color: "gray" }
+};
+function StatusBadge({ status }) {
+  const info2 = STATUS_MAP[status] ?? { label: "UNKNOWN", color: "gray" };
+  return /* @__PURE__ */ jsx3(Text3, { color: info2.color, children: "\u25CF " + info2.label });
+}
+
+// src/tui/components/monitor-table.tsx
+import { jsx as jsx4, jsxs as jsxs3 } from "react/jsx-runtime";
+function truncate(str, maxLen) {
+  if (str.length <= maxLen) return str;
+  return str.slice(0, maxLen - 1) + "\u2026";
+}
+function pad(str, width) {
+  const truncated = truncate(str, width);
+  return truncated + " ".repeat(Math.max(0, width - truncated.length));
+}
+var COL_STATUS = 11;
+var COL_NAME = 30;
+var COL_TYPE = 8;
+var COL_URL = 30;
+var COL_UPTIME = 9;
+var COL_PING = 9;
+var COL_CHECKED = 12;
+var CHROME_LINES = 12;
+function MonitorTable({
+  monitors,
+  selectedIndex,
+  loadingMonitorId,
+  changedMonitorIds
+}) {
+  const [scrollOffset, setScrollOffset] = useState(0);
+  const termRows = process.stdout.rows ?? 40;
+  const termWidth = process.stdout.columns ?? 120;
+  const maxVisible = Math.max(1, termRows - CHROME_LINES);
+  useEffect(() => {
+    setScrollOffset((prev) => {
+      if (selectedIndex < prev) return selectedIndex;
+      if (selectedIndex >= prev + maxVisible) return selectedIndex - maxVisible + 1;
+      return prev;
+    });
+  }, [selectedIndex, maxVisible]);
+  if (monitors.length === 0) {
+    return /* @__PURE__ */ jsx4(Box3, { children: /* @__PURE__ */ jsx4(Text4, { dimColor: true, children: "No monitors match the current filters." }) });
+  }
+  const showUrl = termWidth >= 90;
+  const showPing = termWidth >= 75;
+  const showChecked = termWidth >= 100;
+  const visibleMonitors = monitors.slice(scrollOffset, scrollOffset + maxVisible);
+  const hasScrollUp = scrollOffset > 0;
+  const hasScrollDown = scrollOffset + maxVisible < monitors.length;
+  return /* @__PURE__ */ jsxs3(Box3, { flexDirection: "column", children: [
+    /* @__PURE__ */ jsx4(Box3, { children: /* @__PURE__ */ jsxs3(Text4, { bold: true, dimColor: true, children: [
+      pad("STATUS", COL_STATUS),
+      pad("NAME", COL_NAME),
+      pad("TYPE", COL_TYPE),
+      showUrl ? pad("URL", COL_URL) : "",
+      pad("UPTIME", COL_UPTIME),
+      showPing ? pad("PING", COL_PING) : "",
+      showChecked ? pad("CHECKED", COL_CHECKED) : ""
+    ] }) }),
+    hasScrollUp && /* @__PURE__ */ jsxs3(Text4, { dimColor: true, children: [
+      "  ",
+      "\u25B2",
+      " ",
+      scrollOffset,
+      " more above"
+    ] }),
+    visibleMonitors.map((m, vi) => {
+      const i = vi + scrollOffset;
+      const isSelected = i === selectedIndex;
+      const isLoading = loadingMonitorId === m.id;
+      const isChanged = changedMonitorIds?.has(m.id) ?? false;
+      const indent = "  ".repeat(m.depth);
+      const displayName = indent + m.name;
+      const uptimeNum = parseFloat(m.uptime);
+      let uptimeColor2;
+      if (!isNaN(uptimeNum)) {
+        if (uptimeNum >= 99) uptimeColor2 = "green";
+        else if (uptimeNum >= 95) uptimeColor2 = "yellow";
+        else uptimeColor2 = "red";
+      }
+      const pingNum = parseInt(m.ping, 10);
+      let pingColor;
+      if (!isNaN(pingNum)) {
+        if (pingNum < 200) pingColor = "green";
+        else if (pingNum < 500) pingColor = "yellow";
+        else pingColor = "red";
+      }
+      return /* @__PURE__ */ jsx4(Box3, { children: /* @__PURE__ */ jsxs3(Text4, { inverse: isSelected, bold: isChanged, color: isChanged ? "yellow" : void 0, children: [
+        /* @__PURE__ */ jsx4(StatusBadge, { status: m.status }),
+        "  ",
+        isLoading ? /* @__PURE__ */ jsx4(Text4, { color: "yellow", children: pad("[...]", COL_NAME) }) : /* @__PURE__ */ jsx4(Text4, { children: pad(displayName, COL_NAME) }),
+        /* @__PURE__ */ jsx4(Text4, { dimColor: true, children: pad(m.type, COL_TYPE) }),
+        showUrl && /* @__PURE__ */ jsx4(Text4, { dimColor: true, children: pad(m.url, COL_URL) }),
+        /* @__PURE__ */ jsx4(Text4, { color: uptimeColor2, children: pad(m.uptime, COL_UPTIME) }),
+        showPing && /* @__PURE__ */ jsx4(Text4, { color: pingColor, children: pad(m.ping, COL_PING) }),
+        showChecked && /* @__PURE__ */ jsx4(Text4, { dimColor: true, children: pad(m.lastChecked, COL_CHECKED) })
+      ] }) }, m.id);
+    }),
+    hasScrollDown && /* @__PURE__ */ jsxs3(Text4, { dimColor: true, children: [
+      "  ",
+      "\u25BC",
+      " ",
+      monitors.length - scrollOffset - maxVisible,
+      " more below"
+    ] })
+  ] });
+}
+
+// src/tui/components/monitor-detail.tsx
+import { Box as Box4, Text as Text5 } from "ink";
+import { jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
+function formatTime(timeStr) {
+  try {
+    const d = new Date(timeStr);
+    return d.toLocaleTimeString(void 0, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  } catch {
+    return timeStr;
+  }
+}
+function statusText(status) {
+  if (status === 1) return { label: "UP", color: "green" };
+  if (status === 0) return { label: "DOWN", color: "red" };
+  if (status === 2) return { label: "PENDING", color: "yellow" };
+  if (status === 3) return { label: "MAINT", color: "gray" };
+  return { label: "UNKNOWN", color: "gray" };
+}
+function uptimeColor(pct) {
+  if (pct >= 99) return "green";
+  if (pct >= 95) return "yellow";
+  return "red";
+}
+function MonitorDetail({ monitor, heartbeats, loading, error: error4 }) {
+  const recentBeats = heartbeats.slice(-20);
+  const totalBeats = heartbeats.length;
+  const upBeats = heartbeats.filter((h) => h.status === 1).length;
+  const uptimePct = totalBeats > 0 ? upBeats / totalBeats * 100 : 0;
+  const pingsWithValues = heartbeats.filter((h) => h.ping != null && h.ping > 0);
+  const avgPing = pingsWithValues.length > 0 ? Math.round(pingsWithValues.reduce((sum, h) => sum + (h.ping ?? 0), 0) / pingsWithValues.length) : null;
+  return /* @__PURE__ */ jsxs4(Box4, { flexDirection: "column", children: [
+    /* @__PURE__ */ jsx5(Box4, { marginBottom: 1, children: /* @__PURE__ */ jsx5(Text5, { bold: true, color: "cyan", children: "Monitor Detail" }) }),
+    /* @__PURE__ */ jsxs4(Box4, { flexDirection: "column", marginBottom: 1, children: [
+      /* @__PURE__ */ jsxs4(Box4, { children: [
+        /* @__PURE__ */ jsx5(Box4, { width: 16, children: /* @__PURE__ */ jsx5(Text5, { bold: true, children: "Name:" }) }),
+        /* @__PURE__ */ jsx5(Text5, { children: monitor.name })
+      ] }),
+      /* @__PURE__ */ jsxs4(Box4, { children: [
+        /* @__PURE__ */ jsx5(Box4, { width: 16, children: /* @__PURE__ */ jsx5(Text5, { bold: true, children: "ID:" }) }),
+        /* @__PURE__ */ jsx5(Text5, { children: String(monitor.id) })
+      ] }),
+      /* @__PURE__ */ jsxs4(Box4, { children: [
+        /* @__PURE__ */ jsx5(Box4, { width: 16, children: /* @__PURE__ */ jsx5(Text5, { bold: true, children: "Type:" }) }),
+        /* @__PURE__ */ jsx5(Text5, { children: monitor.type })
+      ] }),
+      monitor.url ? /* @__PURE__ */ jsxs4(Box4, { children: [
+        /* @__PURE__ */ jsx5(Box4, { width: 16, children: /* @__PURE__ */ jsx5(Text5, { bold: true, children: "URL:" }) }),
+        /* @__PURE__ */ jsx5(Text5, { children: monitor.url })
+      ] }) : null
+    ] }),
+    /* @__PURE__ */ jsxs4(Box4, { marginBottom: 1, children: [
+      /* @__PURE__ */ jsx5(Box4, { width: 16, children: /* @__PURE__ */ jsx5(Text5, { bold: true, children: "Status:" }) }),
+      /* @__PURE__ */ jsx5(StatusBadge, { status: monitor.status })
+    ] }),
+    /* @__PURE__ */ jsxs4(Box4, { marginBottom: 1, gap: 4, children: [
+      /* @__PURE__ */ jsxs4(Box4, { children: [
+        /* @__PURE__ */ jsx5(Text5, { bold: true, children: "Uptime: " }),
+        /* @__PURE__ */ jsxs4(Text5, { color: uptimeColor(uptimePct), children: [
+          uptimePct.toFixed(1),
+          "%"
+        ] }),
+        /* @__PURE__ */ jsxs4(Text5, { dimColor: true, children: [
+          " (",
+          upBeats,
+          "/",
+          totalBeats,
+          " beats)"
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxs4(Box4, { children: [
+        /* @__PURE__ */ jsx5(Text5, { bold: true, children: "Avg Response: " }),
+        avgPing != null ? /* @__PURE__ */ jsxs4(Text5, { color: avgPing < 200 ? "green" : avgPing < 500 ? "yellow" : "red", children: [
+          avgPing,
+          "ms"
+        ] }) : /* @__PURE__ */ jsx5(Text5, { dimColor: true, children: "--" })
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxs4(Box4, { flexDirection: "column", children: [
+      /* @__PURE__ */ jsx5(Text5, { bold: true, children: "Recent Heartbeats" }),
+      loading ? /* @__PURE__ */ jsx5(Text5, { dimColor: true, children: "Loading heartbeats..." }) : error4 ? /* @__PURE__ */ jsxs4(Text5, { color: "red", children: [
+        "Error: ",
+        error4
+      ] }) : recentBeats.length === 0 ? /* @__PURE__ */ jsx5(Text5, { dimColor: true, children: "No heartbeat data available" }) : /* @__PURE__ */ jsxs4(Box4, { flexDirection: "column", marginTop: 0, children: [
+        /* @__PURE__ */ jsxs4(Box4, { children: [
+          /* @__PURE__ */ jsx5(Box4, { width: 14, children: /* @__PURE__ */ jsx5(Text5, { bold: true, dimColor: true, children: "Time" }) }),
+          /* @__PURE__ */ jsx5(Box4, { width: 12, children: /* @__PURE__ */ jsx5(Text5, { bold: true, dimColor: true, children: "Status" }) }),
+          /* @__PURE__ */ jsx5(Box4, { width: 12, children: /* @__PURE__ */ jsx5(Text5, { bold: true, dimColor: true, children: "Response" }) }),
+          /* @__PURE__ */ jsx5(Box4, { width: 40, children: /* @__PURE__ */ jsx5(Text5, { bold: true, dimColor: true, children: "Message" }) })
+        ] }),
+        [...recentBeats].reverse().map((hb) => {
+          const st = statusText(hb.status);
+          return /* @__PURE__ */ jsxs4(Box4, { children: [
+            /* @__PURE__ */ jsx5(Box4, { width: 14, children: /* @__PURE__ */ jsx5(Text5, { dimColor: true, children: formatTime(hb.time) }) }),
+            /* @__PURE__ */ jsx5(Box4, { width: 12, children: /* @__PURE__ */ jsx5(Text5, { color: st.color, children: st.label }) }),
+            /* @__PURE__ */ jsx5(Box4, { width: 12, children: hb.ping != null ? /* @__PURE__ */ jsxs4(Text5, { children: [
+              hb.ping,
+              "ms"
+            ] }) : /* @__PURE__ */ jsx5(Text5, { dimColor: true, children: "--" }) }),
+            /* @__PURE__ */ jsx5(Box4, { width: 40, children: /* @__PURE__ */ jsx5(Text5, { dimColor: true, wrap: "truncate", children: hb.msg ?? "" }) })
+          ] }, hb.id);
+        })
+      ] })
+    ] })
+  ] });
+}
+
+// src/tui/components/confirm-dialog.tsx
+import { Box as Box5, Text as Text6, useInput } from "ink";
+import { jsx as jsx6, jsxs as jsxs5 } from "react/jsx-runtime";
+function ConfirmDialog({
+  message,
+  onConfirm,
+  onCancel
+}) {
+  useInput((input, key) => {
+    if (input === "y" || input === "Y") {
+      onConfirm();
+      return;
+    }
+    if (input === "n" || input === "N" || key.escape) {
+      onCancel();
+      return;
+    }
+  });
+  return /* @__PURE__ */ jsxs5(Box5, { marginTop: 1, flexDirection: "column", children: [
+    /* @__PURE__ */ jsx6(Box5, { children: /* @__PURE__ */ jsx6(Text6, { color: "yellow", bold: true, children: message }) }),
+    /* @__PURE__ */ jsxs5(Box5, { children: [
+      /* @__PURE__ */ jsx6(Text6, { dimColor: true, children: "Press " }),
+      /* @__PURE__ */ jsx6(Text6, { color: "green", bold: true, children: "y" }),
+      /* @__PURE__ */ jsx6(Text6, { dimColor: true, children: " to confirm, " }),
+      /* @__PURE__ */ jsx6(Text6, { color: "red", bold: true, children: "n" }),
+      /* @__PURE__ */ jsx6(Text6, { dimColor: true, children: " or Esc to cancel" })
+    ] })
+  ] });
+}
+
+// src/tui/components/toast.tsx
+import { Box as Box6, Text as Text7 } from "ink";
+import { jsx as jsx7 } from "react/jsx-runtime";
+function Toast({
+  message,
+  color = "green"
+}) {
+  return /* @__PURE__ */ jsx7(Box6, { marginTop: 1, children: /* @__PURE__ */ jsx7(Text7, { color, bold: true, children: message }) });
+}
+
+// src/tui/components/search-input.tsx
+import { Box as Box7, Text as Text8 } from "ink";
+import TextInput from "ink-text-input";
+import { jsx as jsx8, jsxs as jsxs6 } from "react/jsx-runtime";
+function SearchInput({
+  value,
+  onChange
+}) {
+  return /* @__PURE__ */ jsxs6(Box7, { children: [
+    /* @__PURE__ */ jsx8(Text8, { bold: true, color: "yellow", children: "/" }),
+    /* @__PURE__ */ jsx8(Text8, { children: " " }),
+    /* @__PURE__ */ jsx8(TextInput, { value, onChange, placeholder: "type to filter by name..." })
+  ] });
+}
+
+// src/tui/components/filter-menu.tsx
+import { useState as useState2 } from "react";
+import { Box as Box8, Text as Text9, useInput as useInput2 } from "ink";
+import { jsx as jsx9, jsxs as jsxs7 } from "react/jsx-runtime";
+var FILTER_OPTIONS = [
+  { label: "ALL", value: null, color: "white" },
+  { label: "UP", value: 1, color: "green" },
+  { label: "DOWN", value: 0, color: "red" },
+  { label: "PENDING", value: 2, color: "yellow" },
+  { label: "MAINTENANCE", value: 3, color: "gray" }
+];
+function FilterMenu({
+  onSelect,
+  onCancel,
+  currentFilter
+}) {
+  const initialIndex = FILTER_OPTIONS.findIndex(
+    (o) => o.value === currentFilter
+  );
+  const [selectedIndex, setSelectedIndex] = useState2(
+    initialIndex >= 0 ? initialIndex : 0
+  );
+  useInput2((input, key) => {
+    if (key.escape) {
+      onCancel();
+      return;
+    }
+    if (key.return) {
+      onSelect(FILTER_OPTIONS[selectedIndex].value);
+      return;
+    }
+    if (input === "k" || key.upArrow) {
+      setSelectedIndex((prev) => Math.max(0, prev - 1));
+      return;
+    }
+    if (input === "j" || key.downArrow) {
+      setSelectedIndex(
+        (prev) => Math.min(FILTER_OPTIONS.length - 1, prev + 1)
+      );
+      return;
+    }
+  });
+  return /* @__PURE__ */ jsxs7(Box8, { flexDirection: "column", borderStyle: "single", borderColor: "yellow", paddingX: 1, children: [
+    /* @__PURE__ */ jsx9(Text9, { bold: true, color: "yellow", children: "Filter by status:" }),
+    FILTER_OPTIONS.map((option, index) => {
+      const isSelected = index === selectedIndex;
+      const isCurrent = option.value === currentFilter;
+      return /* @__PURE__ */ jsxs7(Box8, { children: [
+        /* @__PURE__ */ jsx9(Text9, { children: isSelected ? "> " : "  " }),
+        /* @__PURE__ */ jsx9(Text9, { color: option.color, bold: isSelected, children: option.label }),
+        isCurrent && /* @__PURE__ */ jsx9(Text9, { dimColor: true, children: " (current)" })
+      ] }, option.label);
+    }),
+    /* @__PURE__ */ jsx9(Text9, { dimColor: true, children: "j/k=navigate Enter=select Esc=cancel" })
+  ] });
+}
+
+// src/tui/components/instance-switcher.tsx
+import { useState as useState3 } from "react";
+import { Box as Box9, Text as Text10, useInput as useInput3 } from "ink";
+import { jsx as jsx10, jsxs as jsxs8 } from "react/jsx-runtime";
+function InstanceSwitcher({
+  instances,
+  currentInstance,
+  onSelect,
+  onCancel
+}) {
+  const names = Object.keys(instances).sort();
+  const [selectedIndex, setSelectedIndex] = useState3(() => {
+    const idx = names.indexOf(currentInstance);
+    return idx >= 0 ? idx : 0;
+  });
+  useInput3((input, key) => {
+    if (key.escape) {
+      onCancel();
+      return;
+    }
+    if (key.return) {
+      if (names.length > 0) onSelect(names[selectedIndex]);
+      return;
+    }
+    if (input === "k" || key.upArrow) {
+      setSelectedIndex((prev) => Math.max(0, prev - 1));
+      return;
+    }
+    if (input === "j" || key.downArrow) {
+      setSelectedIndex((prev) => Math.min(names.length - 1, prev + 1));
+      return;
+    }
+  });
+  if (names.length === 0) {
+    return /* @__PURE__ */ jsxs8(Box9, { flexDirection: "column", paddingX: 1, paddingY: 1, children: [
+      /* @__PURE__ */ jsx10(Text10, { bold: true, color: "cyan", children: "Switch Instance" }),
+      /* @__PURE__ */ jsxs8(Text10, { dimColor: true, children: [
+        "No instances configured. Run: kuma login ",
+        "<url>"
+      ] }),
+      /* @__PURE__ */ jsx10(Box9, { marginTop: 1, children: /* @__PURE__ */ jsx10(Text10, { dimColor: true, children: "Esc=cancel" }) })
+    ] });
+  }
+  return /* @__PURE__ */ jsxs8(Box9, { flexDirection: "column", paddingX: 1, paddingY: 1, children: [
+    /* @__PURE__ */ jsx10(Text10, { bold: true, color: "cyan", children: "Switch Instance" }),
+    /* @__PURE__ */ jsx10(Box9, { flexDirection: "column", marginTop: 1, children: names.map((name, idx) => {
+      const inst = instances[name];
+      const isSelected = idx === selectedIndex;
+      const isCurrent = name === currentInstance;
+      return /* @__PURE__ */ jsxs8(Box9, { children: [
+        /* @__PURE__ */ jsxs8(Text10, { color: isSelected ? "cyan" : void 0, bold: isSelected, children: [
+          isSelected ? "> " : "  ",
+          name
+        ] }),
+        /* @__PURE__ */ jsxs8(Text10, { dimColor: true, children: [
+          " ",
+          inst.url
+        ] }),
+        isCurrent && /* @__PURE__ */ jsx10(Text10, { color: "green", children: " (active)" })
+      ] }, name);
+    }) }),
+    /* @__PURE__ */ jsx10(Box9, { marginTop: 1, children: /* @__PURE__ */ jsx10(Text10, { dimColor: true, children: "j/k=navigate  Enter=select  Esc=cancel" }) })
+  ] });
+}
+
+// src/tui/components/cluster-switcher.tsx
+import { useState as useState4 } from "react";
+import { Box as Box10, Text as Text11, useInput as useInput4 } from "ink";
+import { jsx as jsx11, jsxs as jsxs9 } from "react/jsx-runtime";
+function ClusterSwitcher({
+  clusters,
+  currentCluster,
+  onSelect,
+  onCancel
+}) {
+  const names = Object.keys(clusters).sort();
+  const [selectedIndex, setSelectedIndex] = useState4(() => {
+    if (!currentCluster) return 0;
+    const idx = names.indexOf(currentCluster);
+    return idx >= 0 ? idx : 0;
+  });
+  useInput4((input, key) => {
+    if (key.escape) {
+      onCancel();
+      return;
+    }
+    if (key.return) {
+      if (names.length > 0) onSelect(names[selectedIndex]);
+      return;
+    }
+    if (input === "k" || key.upArrow) {
+      setSelectedIndex((prev) => Math.max(0, prev - 1));
+      return;
+    }
+    if (input === "j" || key.downArrow) {
+      setSelectedIndex((prev) => Math.min(names.length - 1, prev + 1));
+      return;
+    }
+  });
+  if (names.length === 0) {
+    return /* @__PURE__ */ jsxs9(Box10, { flexDirection: "column", paddingX: 1, paddingY: 1, children: [
+      /* @__PURE__ */ jsx11(Text11, { bold: true, color: "cyan", children: "Switch Cluster" }),
+      /* @__PURE__ */ jsxs9(Text11, { dimColor: true, children: [
+        "No clusters configured. Run: kuma cluster create ",
+        "<name>"
+      ] }),
+      /* @__PURE__ */ jsx11(Box10, { marginTop: 1, children: /* @__PURE__ */ jsx11(Text11, { dimColor: true, children: "Esc=cancel" }) })
+    ] });
+  }
+  return /* @__PURE__ */ jsxs9(Box10, { flexDirection: "column", paddingX: 1, paddingY: 1, children: [
+    /* @__PURE__ */ jsx11(Text11, { bold: true, color: "cyan", children: "Switch Cluster" }),
+    /* @__PURE__ */ jsx11(Box10, { flexDirection: "column", marginTop: 1, children: names.map((name, idx) => {
+      const cluster = clusters[name];
+      const isSelected = idx === selectedIndex;
+      const isCurrent = name === currentCluster;
+      return /* @__PURE__ */ jsxs9(Box10, { flexDirection: "column", children: [
+        /* @__PURE__ */ jsxs9(Box10, { children: [
+          /* @__PURE__ */ jsxs9(Text11, { color: isSelected ? "cyan" : void 0, bold: isSelected, children: [
+            isSelected ? "> " : "  ",
+            name
+          ] }),
+          isCurrent && /* @__PURE__ */ jsx11(Text11, { color: "green", children: " (active)" })
+        ] }),
+        /* @__PURE__ */ jsx11(Box10, { marginLeft: 4, children: /* @__PURE__ */ jsxs9(Text11, { dimColor: true, children: [
+          "primary: ",
+          cluster.primary,
+          " | instances: ",
+          cluster.instances.join(", ")
+        ] }) })
+      ] }, name);
+    }) }),
+    /* @__PURE__ */ jsx11(Box10, { marginTop: 1, children: /* @__PURE__ */ jsx11(Text11, { dimColor: true, children: "j/k=navigate  Enter=select  Esc=cancel" }) })
+  ] });
+}
+
+// src/tui/components/login-screen.tsx
+import { useState as useState5 } from "react";
+import { Box as Box11, Text as Text12, useInput as useInput5 } from "ink";
+import TextInput2 from "ink-text-input";
+import { jsx as jsx12, jsxs as jsxs10 } from "react/jsx-runtime";
+var FIELDS = ["url", "username", "password"];
+function LoginScreen({
+  onLogin,
+  error: error4,
+  loading
+}) {
+  const [url, setUrl] = useState5("");
+  const [username, setUsername] = useState5("");
+  const [password, setPassword] = useState5("");
+  const [activeField, setActiveField] = useState5("url");
+  useInput5((_input, key) => {
+    if (loading) return;
+    if (key.return) {
+      const idx = FIELDS.indexOf(activeField);
+      if (idx < FIELDS.length - 1) {
+        setActiveField(FIELDS[idx + 1]);
+      } else {
+        if (url && username && password) {
+          onLogin(url.replace(/\/$/, ""), username, password);
+        }
+      }
+      return;
+    }
+    if (key.tab) {
+      const idx = FIELDS.indexOf(activeField);
+      setActiveField(FIELDS[(idx + 1) % FIELDS.length]);
+      return;
+    }
+  });
+  const maskedPassword = "*".repeat(password.length);
+  const LOGO2 = [
+    " _  ___   _ __  __    _      ___ _    ___ ",
+    "| |/ / | | |  \\/  |  /_\\    / __| |  |_ _|",
+    "| ' <| |_| | |\\/| | / _ \\  | (__| |__ | | ",
+    "|_|\\_\\\\___/|_|  |_|/_/ \\_\\  \\___|____|___|"
+  ];
+  return /* @__PURE__ */ jsxs10(Box11, { flexDirection: "column", paddingX: 2, paddingY: 1, children: [
+    /* @__PURE__ */ jsx12(Box11, { flexDirection: "column", children: LOGO2.map((line, i) => /* @__PURE__ */ jsx12(Text12, { color: "#db2777", bold: true, children: line }, i)) }),
+    /* @__PURE__ */ jsx12(Box11, { marginTop: 1, marginBottom: 1, flexDirection: "column", children: /* @__PURE__ */ jsx12(Text12, { dimColor: true, children: "No instances configured. Log in to get started." }) }),
+    /* @__PURE__ */ jsxs10(Box11, { flexDirection: "column", marginBottom: 1, children: [
+      /* @__PURE__ */ jsxs10(Box11, { children: [
+        /* @__PURE__ */ jsx12(Box11, { width: 12, children: /* @__PURE__ */ jsx12(Text12, { bold: true, color: activeField === "url" ? "cyan" : void 0, children: "URL:" }) }),
+        activeField === "url" ? /* @__PURE__ */ jsx12(
+          TextInput2,
+          {
+            value: url,
+            onChange: setUrl,
+            placeholder: "https://kuma.example.com"
+          }
+        ) : /* @__PURE__ */ jsx12(Text12, { children: url || /* @__PURE__ */ jsx12(Text12, { dimColor: true, children: "https://kuma.example.com" }) })
+      ] }),
+      /* @__PURE__ */ jsxs10(Box11, { children: [
+        /* @__PURE__ */ jsx12(Box11, { width: 12, children: /* @__PURE__ */ jsx12(Text12, { bold: true, color: activeField === "username" ? "cyan" : void 0, children: "Username:" }) }),
+        activeField === "username" ? /* @__PURE__ */ jsx12(
+          TextInput2,
+          {
+            value: username,
+            onChange: setUsername,
+            placeholder: "admin"
+          }
+        ) : /* @__PURE__ */ jsx12(Text12, { children: username || /* @__PURE__ */ jsx12(Text12, { dimColor: true, children: "admin" }) })
+      ] }),
+      /* @__PURE__ */ jsxs10(Box11, { children: [
+        /* @__PURE__ */ jsx12(Box11, { width: 12, children: /* @__PURE__ */ jsx12(Text12, { bold: true, color: activeField === "password" ? "cyan" : void 0, children: "Password:" }) }),
+        activeField === "password" ? /* @__PURE__ */ jsx12(
+          TextInput2,
+          {
+            value: password,
+            onChange: setPassword,
+            placeholder: "********",
+            mask: "*"
+          }
+        ) : /* @__PURE__ */ jsx12(Text12, { children: maskedPassword || /* @__PURE__ */ jsx12(Text12, { dimColor: true, children: "********" }) })
+      ] })
+    ] }),
+    !url.startsWith("https://") && url.length > 0 && /* @__PURE__ */ jsx12(Box11, { marginBottom: 1, children: /* @__PURE__ */ jsx12(Text12, { color: "yellow", children: "Warning: connecting over HTTP. Credentials will be sent in cleartext." }) }),
+    error4 && /* @__PURE__ */ jsx12(Box11, { marginBottom: 1, children: /* @__PURE__ */ jsx12(Text12, { color: "red", children: error4 }) }),
+    loading ? /* @__PURE__ */ jsx12(Text12, { color: "yellow", children: "Connecting..." }) : /* @__PURE__ */ jsx12(Text12, { dimColor: true, children: "Enter=next field/submit  Tab=switch field  Fill all fields to connect" })
+  ] });
+}
+
+// src/tui/components/help-screen.tsx
+import { Box as Box12, Text as Text13, useInput as useInput6 } from "ink";
+import { jsx as jsx13, jsxs as jsxs11 } from "react/jsx-runtime";
+function HelpScreen({ onClose }) {
+  useInput6((_input, key) => {
+    if (key.escape || _input === "h" || _input === "q") {
+      onClose();
+    }
+  });
+  const LOGO2 = [
+    " _  ___   _ __  __    _      ___ _    ___ ",
+    "| |/ / | | |  \\/  |  /_\\    / __| |  |_ _|",
+    "| ' <| |_| | |\\/| | / _ \\  | (__| |__ | | ",
+    "|_|\\_\\\\___/|_|  |_|/_/ \\_\\  \\___|____|___|"
+  ];
+  return /* @__PURE__ */ jsxs11(Box12, { flexDirection: "column", paddingX: 2, paddingY: 1, children: [
+    /* @__PURE__ */ jsx13(Box12, { flexDirection: "column", children: LOGO2.map((line, i) => /* @__PURE__ */ jsx13(Text13, { color: "#db2777", bold: true, children: line }, i)) }),
+    /* @__PURE__ */ jsx13(Box12, { marginTop: 1, children: /* @__PURE__ */ jsx13(Text13, { dimColor: true, children: "Run these from your terminal (outside the dashboard)" }) }),
+    /* @__PURE__ */ jsxs11(Box12, { marginTop: 1, flexDirection: "column", children: [
+      /* @__PURE__ */ jsx13(Text13, { bold: true, children: "Authentication" }),
+      /* @__PURE__ */ jsxs11(Text13, { children: [
+        "  ",
+        /* @__PURE__ */ jsxs11(Text13, { color: "cyan", children: [
+          "kuma login ",
+          "<url>"
+        ] }),
+        "              Authenticate with an instance"
+      ] }),
+      /* @__PURE__ */ jsxs11(Text13, { children: [
+        "  ",
+        /* @__PURE__ */ jsx13(Text13, { color: "cyan", children: "kuma logout" }),
+        "                    Clear saved session"
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxs11(Box12, { marginTop: 1, flexDirection: "column", children: [
+      /* @__PURE__ */ jsx13(Text13, { bold: true, children: "Monitors" }),
+      /* @__PURE__ */ jsxs11(Text13, { children: [
+        "  ",
+        /* @__PURE__ */ jsx13(Text13, { color: "cyan", children: "kuma monitors list" }),
+        "             List all monitors"
+      ] }),
+      /* @__PURE__ */ jsxs11(Text13, { children: [
+        "  ",
+        /* @__PURE__ */ jsx13(Text13, { color: "cyan", children: "kuma monitors add" }),
+        "              Add a monitor interactively"
+      ] }),
+      /* @__PURE__ */ jsxs11(Text13, { children: [
+        "  ",
+        /* @__PURE__ */ jsx13(Text13, { color: "cyan", children: "kuma monitors create" }),
+        "           Create a monitor (non-interactive)"
+      ] }),
+      /* @__PURE__ */ jsxs11(Text13, { children: [
+        "  ",
+        /* @__PURE__ */ jsxs11(Text13, { color: "cyan", children: [
+          "kuma monitors pause ",
+          "<id>"
+        ] }),
+        "       Pause a monitor"
+      ] }),
+      /* @__PURE__ */ jsxs11(Text13, { children: [
+        "  ",
+        /* @__PURE__ */ jsxs11(Text13, { color: "cyan", children: [
+          "kuma monitors resume ",
+          "<id>"
+        ] }),
+        "      Resume a monitor"
+      ] }),
+      /* @__PURE__ */ jsxs11(Text13, { children: [
+        "  ",
+        /* @__PURE__ */ jsxs11(Text13, { color: "cyan", children: [
+          "kuma monitors delete ",
+          "<id>"
+        ] }),
+        "      Delete a monitor"
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxs11(Box12, { marginTop: 1, flexDirection: "column", children: [
+      /* @__PURE__ */ jsx13(Text13, { bold: true, children: "Other" }),
+      /* @__PURE__ */ jsxs11(Text13, { children: [
+        "  ",
+        /* @__PURE__ */ jsxs11(Text13, { color: "cyan", children: [
+          "kuma heartbeat view ",
+          "<id>"
+        ] }),
+        "       View heartbeat history"
+      ] }),
+      /* @__PURE__ */ jsxs11(Text13, { children: [
+        "  ",
+        /* @__PURE__ */ jsx13(Text13, { color: "cyan", children: "kuma notifications list" }),
+        "        List notification channels"
+      ] }),
+      /* @__PURE__ */ jsxs11(Text13, { children: [
+        "  ",
+        /* @__PURE__ */ jsx13(Text13, { color: "cyan", children: "kuma status-pages list" }),
+        "         List status pages"
+      ] }),
+      /* @__PURE__ */ jsxs11(Text13, { children: [
+        "  ",
+        /* @__PURE__ */ jsx13(Text13, { color: "cyan", children: "kuma config export" }),
+        "             Export monitors to YAML/JSON"
+      ] }),
+      /* @__PURE__ */ jsxs11(Text13, { children: [
+        "  ",
+        /* @__PURE__ */ jsxs11(Text13, { color: "cyan", children: [
+          "kuma config import ",
+          "<file>"
+        ] }),
+        "      Import monitors from file"
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxs11(Box12, { marginTop: 1, flexDirection: "column", children: [
+      /* @__PURE__ */ jsx13(Text13, { bold: true, children: "Multi-Instance" }),
+      /* @__PURE__ */ jsxs11(Text13, { children: [
+        "  ",
+        /* @__PURE__ */ jsx13(Text13, { color: "cyan", children: "kuma instances list" }),
+        "            List saved instances"
+      ] }),
+      /* @__PURE__ */ jsxs11(Text13, { children: [
+        "  ",
+        /* @__PURE__ */ jsxs11(Text13, { color: "cyan", children: [
+          "kuma use ",
+          "<name>"
+        ] }),
+        "               Switch active instance"
+      ] }),
+      /* @__PURE__ */ jsxs11(Text13, { children: [
+        "  ",
+        /* @__PURE__ */ jsxs11(Text13, { color: "cyan", children: [
+          "kuma cluster create ",
+          "<name>"
+        ] }),
+        "     Create a cluster"
+      ] }),
+      /* @__PURE__ */ jsxs11(Text13, { children: [
+        "  ",
+        /* @__PURE__ */ jsxs11(Text13, { color: "cyan", children: [
+          "kuma cluster sync ",
+          "<name>"
+        ] }),
+        "       Sync cluster monitors"
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxs11(Box12, { marginTop: 1, flexDirection: "column", children: [
+      /* @__PURE__ */ jsx13(Text13, { bold: true, children: "Dashboard Shortcuts" }),
+      /* @__PURE__ */ jsxs11(Text13, { children: [
+        "  ",
+        /* @__PURE__ */ jsx13(Text13, { color: "cyan", children: "q" }),
+        "=quit  ",
+        /* @__PURE__ */ jsx13(Text13, { color: "cyan", children: "j/k" }),
+        "=navigate  ",
+        /* @__PURE__ */ jsx13(Text13, { color: "cyan", children: "Enter" }),
+        "=detail  ",
+        /* @__PURE__ */ jsx13(Text13, { color: "cyan", children: "Esc" }),
+        "=back"
+      ] }),
+      /* @__PURE__ */ jsxs11(Text13, { children: [
+        "  ",
+        /* @__PURE__ */ jsx13(Text13, { color: "cyan", children: "r" }),
+        "=refresh  ",
+        /* @__PURE__ */ jsx13(Text13, { color: "cyan", children: "/" }),
+        "=search  ",
+        /* @__PURE__ */ jsx13(Text13, { color: "cyan", children: "f" }),
+        "=filter  ",
+        /* @__PURE__ */ jsx13(Text13, { color: "cyan", children: "p" }),
+        "=pause  ",
+        /* @__PURE__ */ jsx13(Text13, { color: "cyan", children: "u" }),
+        "=resume"
+      ] }),
+      /* @__PURE__ */ jsxs11(Text13, { children: [
+        "  ",
+        /* @__PURE__ */ jsx13(Text13, { color: "cyan", children: "d" }),
+        "=delete  ",
+        /* @__PURE__ */ jsx13(Text13, { color: "cyan", children: "i" }),
+        "=instances  ",
+        /* @__PURE__ */ jsx13(Text13, { color: "cyan", children: "c" }),
+        "=clusters  ",
+        /* @__PURE__ */ jsx13(Text13, { color: "cyan", children: "h" }),
+        "=this help"
+      ] })
+    ] }),
+    /* @__PURE__ */ jsx13(Box12, { marginTop: 1, children: /* @__PURE__ */ jsx13(Text13, { dimColor: true, children: "Press h, Esc, or q to close" }) })
+  ] });
+}
+
+// src/tui/hooks/use-monitors.ts
+import { useState as useState6, useEffect as useEffect2, useCallback, useRef } from "react";
+var STATUS_PRIORITY = {
+  0: 0,
+  // DOWN first
+  2: 1,
+  // PENDING
+  1: 2,
+  // UP
+  3: 3
+  // MAINTENANCE
+};
+function getStatusPriority(status) {
+  return STATUS_PRIORITY[status] ?? 99;
+}
+function formatUptime2(uptime) {
+  if (uptime === void 0 || uptime === null) return "--";
+  return (uptime * 100).toFixed(1) + "%";
+}
+function formatPing2(ping) {
+  if (!ping) return "--";
+  return ping + "ms";
+}
+function formatDate2(dateStr) {
+  if (!dateStr) return "--";
+  return new Date(dateStr).toLocaleTimeString();
+}
+function buildRows(monitorMap) {
+  const monitors = Object.values(monitorMap);
+  const parentIds = /* @__PURE__ */ new Set();
+  const childrenByParent = /* @__PURE__ */ new Map();
+  for (const m of monitors) {
+    if (m.type === "group") {
+      parentIds.add(m.id);
+    }
+    if (m.parent) {
+      const siblings = childrenByParent.get(m.parent) ?? [];
+      siblings.push(m);
+      childrenByParent.set(m.parent, siblings);
+    }
+  }
+  const topLevel = monitors.filter((m) => !m.parent);
+  topLevel.sort((a, b) => {
+    const aStatus = a.heartbeat?.status ?? (a.active ? 2 : 3);
+    const bStatus = b.heartbeat?.status ?? (b.active ? 2 : 3);
+    const sp = getStatusPriority(aStatus) - getStatusPriority(bStatus);
+    if (sp !== 0) return sp;
+    return a.name.localeCompare(b.name);
+  });
+  const rows = [];
+  function toRow(m, depth) {
+    const status = m.heartbeat?.status ?? (m.active ? 2 : 3);
+    return {
+      id: m.id,
+      name: m.name,
+      type: m.type,
+      url: m.url ?? m.hostname ?? "",
+      status,
+      uptime: formatUptime2(m.uptime),
+      ping: formatPing2(m.heartbeat?.ping),
+      lastChecked: formatDate2(m.heartbeat?.time),
+      parent: m.parent ?? void 0,
+      depth
+    };
+  }
+  for (const m of topLevel) {
+    rows.push(toRow(m, 0));
+    const children = childrenByParent.get(m.id);
+    if (children) {
+      children.sort((a, b) => {
+        const aStatus = a.heartbeat?.status ?? (a.active ? 2 : 3);
+        const bStatus = b.heartbeat?.status ?? (b.active ? 2 : 3);
+        const sp = getStatusPriority(aStatus) - getStatusPriority(bStatus);
+        if (sp !== 0) return sp;
+        return a.name.localeCompare(b.name);
+      });
+      for (const child of children) {
+        rows.push(toRow(child, 1));
+      }
+    }
+  }
+  return rows;
+}
+function useMonitors(client, refreshInterval) {
+  const [monitors, setMonitors] = useState6([]);
+  const [loading, setLoading] = useState6(true);
+  const [error4, setError] = useState6(null);
+  const [connected, setConnected] = useState6(true);
+  const [changedMonitorIds, setChangedMonitorIds] = useState6(/* @__PURE__ */ new Set());
+  const flashTimers = useRef(/* @__PURE__ */ new Map());
+  const fetchMonitors = useCallback(async () => {
+    try {
+      const monitorMap = await client.getMonitorList();
+      const rows = buildRows(monitorMap);
+      setMonitors(rows);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoading(false);
+    }
+  }, [client]);
+  useEffect2(() => {
+    const unsubHeartbeat = client.onHeartbeat((monitorId, hb) => {
+      setMonitors((prev) => {
+        const idx = prev.findIndex((m) => m.id === monitorId);
+        if (idx === -1) return prev;
+        const old = prev[idx];
+        const statusChanged = old.status !== hb.status;
+        const updated = {
+          ...old,
+          status: hb.status,
+          ping: hb.ping != null ? hb.ping + "ms" : old.ping,
+          lastChecked: hb.time ? new Date(hb.time).toLocaleTimeString() : old.lastChecked
+        };
+        const next = [...prev];
+        next[idx] = updated;
+        if (statusChanged) {
+          setChangedMonitorIds((s) => new Set(s).add(monitorId));
+          const existing = flashTimers.current.get(monitorId);
+          if (existing) clearTimeout(existing);
+          flashTimers.current.set(
+            monitorId,
+            setTimeout(() => {
+              setChangedMonitorIds((s) => {
+                const ns = new Set(s);
+                ns.delete(monitorId);
+                return ns;
+              });
+              flashTimers.current.delete(monitorId);
+            }, 2e3)
+          );
+        }
+        return next;
+      });
+    });
+    const unsubUptime = client.onUptime((monitorId, period, value) => {
+      if (period !== "24") return;
+      setMonitors((prev) => {
+        const idx = prev.findIndex((m) => m.id === monitorId);
+        if (idx === -1) return prev;
+        const next = [...prev];
+        next[idx] = { ...prev[idx], uptime: (value * 100).toFixed(1) + "%" };
+        return next;
+      });
+    });
+    const unsubDisconnect = client.onDisconnect(() => {
+      setConnected(false);
+    });
+    const unsubReconnect = client.onReconnect(() => {
+      setConnected(true);
+      fetchMonitors();
+    });
+    return () => {
+      unsubHeartbeat();
+      unsubUptime();
+      unsubDisconnect();
+      unsubReconnect();
+      for (const timer of flashTimers.current.values()) {
+        clearTimeout(timer);
+      }
+      flashTimers.current.clear();
+    };
+  }, [client, fetchMonitors]);
+  useEffect2(() => {
+    fetchMonitors();
+    const timer = setInterval(fetchMonitors, Math.max(refreshInterval, 60) * 1e3);
+    return () => clearInterval(timer);
+  }, [fetchMonitors, refreshInterval]);
+  return { monitors, loading, error: error4, connected, changedMonitorIds, refresh: fetchMonitors };
+}
+
+// src/tui/hooks/use-heartbeats.ts
+import { useState as useState7, useEffect as useEffect3, useCallback as useCallback2 } from "react";
+function useHeartbeats(client, monitorId) {
+  const [heartbeats, setHeartbeats] = useState7([]);
+  const [loading, setLoading] = useState7(false);
+  const [error4, setError] = useState7(null);
+  const fetchBeats = useCallback2(async () => {
+    if (monitorId === null) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await client.getHeartbeatList(monitorId, 24);
+      setHeartbeats(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      setHeartbeats([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [client, monitorId]);
+  const refresh = useCallback2(() => {
+    void fetchBeats();
+  }, [fetchBeats]);
+  useEffect3(() => {
+    void fetchBeats();
+  }, [fetchBeats]);
+  return { heartbeats, loading, error: error4, refresh };
+}
+
+// src/tui/hooks/use-filter.ts
+import { useState as useState8, useCallback as useCallback3, useMemo } from "react";
+function useFilter(monitors) {
+  const [searchQuery, setSearchQuery] = useState8("");
+  const [statusFilter, setStatusFilter] = useState8(null);
+  const [mode, setMode] = useState8("normal");
+  const clearFilters = useCallback3(() => {
+    setSearchQuery("");
+    setStatusFilter(null);
+    setMode("normal");
+  }, []);
+  const hasActiveFilters = searchQuery !== "" || statusFilter !== null;
+  const filteredMonitors = useMemo(() => {
+    let result = monitors;
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(
+        (m) => m.name.toLowerCase().includes(query) || m.url.toLowerCase().includes(query)
+      );
+    }
+    if (statusFilter !== null) {
+      result = result.filter((m) => m.status === statusFilter);
+    }
+    return result;
+  }, [monitors, searchQuery, statusFilter]);
+  return {
+    filteredMonitors,
+    searchQuery,
+    statusFilter,
+    mode,
+    setMode,
+    setSearchQuery,
+    setStatusFilter,
+    clearFilters,
+    hasActiveFilters
+  };
+}
+
+// src/tui/hooks/use-toast.ts
+import { useState as useState9, useCallback as useCallback4, useRef as useRef2 } from "react";
+function useToast() {
+  const [toastMessage, setToastMessage] = useState9(null);
+  const [toastColor, setToastColor] = useState9("green");
+  const timerRef = useRef2(null);
+  const showToast = useCallback4(
+    (message, color = "green", durationMs = 2500) => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+      setToastMessage(message);
+      setToastColor(color);
+      timerRef.current = setTimeout(() => {
+        setToastMessage(null);
+        timerRef.current = null;
+      }, durationMs);
+    },
+    []
+  );
+  return { toastMessage, toastColor, showToast };
+}
+
+// src/tui/app.tsx
+import { jsx as jsx14, jsxs as jsxs12 } from "react/jsx-runtime";
+function App({
+  client: initialClient,
+  instanceName: initialInstanceName,
+  clusterName: initialClusterName,
+  refreshInterval
+}) {
+  const { exit } = useApp();
+  const [activeClient, setActiveClient] = useState10(initialClient ?? null);
+  const [activeInstanceName, setActiveInstanceName] = useState10(initialInstanceName ?? "");
+  const [activeClusterName, setActiveClusterName] = useState10(
+    initialClusterName ?? null
+  );
+  const [overlay, setOverlay] = useState10("none");
+  const [connecting, setConnecting] = useState10(false);
+  const [loginError, setLoginError] = useState10(null);
+  const [loginLoading, setLoginLoading] = useState10(false);
+  const handleLogin = useCallback5(async (url, username, password) => {
+    setLoginLoading(true);
+    setLoginError(null);
+    try {
+      const client = new KumaClient(url);
+      await client.connect();
+      const result = await client.login(username, password);
+      if (!result.ok || !result.token) {
+        client.disconnect();
+        setLoginError(result.msg ?? "Login failed");
+        return;
+      }
+      const instanceName = saveConfig({ url, token: result.token });
+      client.disconnect();
+      const authClient = await createAuthenticatedClient(url, result.token);
+      authClient.enableReconnection();
+      setActiveClient(authClient);
+      setActiveInstanceName(instanceName);
+    } catch (err) {
+      setLoginError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoginLoading(false);
+    }
+  }, []);
+  if (!activeClient) {
+    return /* @__PURE__ */ jsx14(LoginScreen, { onLogin: handleLogin, error: loginError, loading: loginLoading });
+  }
+  return /* @__PURE__ */ jsx14(
+    Dashboard,
+    {
+      client: activeClient,
+      instanceName: activeInstanceName,
+      clusterName: activeClusterName,
+      refreshInterval,
+      exit,
+      setActiveClient,
+      setActiveInstanceName,
+      setActiveClusterName,
+      overlay,
+      setOverlay,
+      connecting,
+      setConnecting
+    }
+  );
+}
+function Dashboard({
+  client: activeClient,
+  instanceName: activeInstanceName,
+  clusterName: activeClusterName,
+  refreshInterval,
+  exit,
+  setActiveClient,
+  setActiveInstanceName,
+  setActiveClusterName,
+  overlay,
+  setOverlay,
+  connecting,
+  setConnecting
+}) {
+  const { monitors, loading, error: error4, connected, changedMonitorIds, refresh } = useMonitors(
+    activeClient,
+    refreshInterval
+  );
+  const {
+    filteredMonitors,
+    searchQuery,
+    statusFilter,
+    mode,
+    setMode,
+    setSearchQuery,
+    setStatusFilter,
+    clearFilters,
+    hasActiveFilters
+  } = useFilter(monitors);
+  const [selectedIndex, setSelectedIndex] = useState10(0);
+  const [view, setView] = useState10("list");
+  const [selectedMonitorId, setSelectedMonitorId] = useState10(null);
+  const [pendingAction, setPendingAction] = useState10(null);
+  const [loadingMonitorId, setLoadingMonitorId] = useState10(null);
+  const { toastMessage, toastColor, showToast } = useToast();
+  const { heartbeats, loading: hbLoading, error: hbError, refresh: hbRefresh } = useHeartbeats(
+    activeClient,
+    view === "detail" ? selectedMonitorId : null
+  );
+  const selectedMonitor = filteredMonitors.length > 0 ? filteredMonitors[selectedIndex] : null;
+  const displayName = activeClusterName ? `${activeClusterName}/${activeInstanceName}` : activeInstanceName;
+  const switchToInstance = useCallback5(
+    async (name) => {
+      if (name === activeInstanceName && !activeClusterName) {
+        setOverlay("none");
+        return;
+      }
+      const instConfig = getInstanceConfig(name);
+      if (!instConfig) {
+        showToast(`Instance '${name}' not found`, "red");
+        setOverlay("none");
+        return;
+      }
+      setConnecting(true);
+      setOverlay("none");
+      try {
+        const newClient = await createAuthenticatedClient(instConfig.url, instConfig.token);
+        newClient.enableReconnection();
+        activeClient.disconnect();
+        setActiveClient(newClient);
+        setActiveInstanceName(name);
+        setActiveClusterName(null);
+        setSelectedIndex(0);
+        setView("list");
+        setSelectedMonitorId(null);
+        clearFilters();
+        showToast(`Switched to ${name}`, "green");
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        showToast(`Failed: ${msg}`, "red", 4e3);
+      } finally {
+        setConnecting(false);
+      }
+    },
+    [activeClient, activeInstanceName, activeClusterName, showToast, clearFilters]
+  );
+  const switchToCluster = useCallback5(
+    async (name) => {
+      if (name === activeClusterName) {
+        setOverlay("none");
+        return;
+      }
+      const cluster = getClusterConfig(name);
+      if (!cluster) {
+        showToast(`Cluster '${name}' not found`, "red");
+        setOverlay("none");
+        return;
+      }
+      const primaryConfig = getInstanceConfig(cluster.primary);
+      if (!primaryConfig) {
+        showToast(`Primary instance '${cluster.primary}' not found`, "red");
+        setOverlay("none");
+        return;
+      }
+      setConnecting(true);
+      setOverlay("none");
+      try {
+        const newClient = await createAuthenticatedClient(primaryConfig.url, primaryConfig.token);
+        newClient.enableReconnection();
+        activeClient.disconnect();
+        setActiveClient(newClient);
+        setActiveInstanceName(cluster.primary);
+        setActiveClusterName(name);
+        setSelectedIndex(0);
+        setView("list");
+        setSelectedMonitorId(null);
+        clearFilters();
+        showToast(`Switched to cluster ${name} (${cluster.primary})`, "green");
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        showToast(`Failed: ${msg}`, "red", 4e3);
+      } finally {
+        setConnecting(false);
+      }
+    },
+    [activeClient, activeClusterName, showToast, clearFilters]
+  );
+  const executeAction = useCallback5(
+    async (action) => {
+      setLoadingMonitorId(action.monitorId);
+      try {
+        if (action.type === "pause") {
+          await activeClient.pauseMonitor(action.monitorId);
+          showToast(`Monitor "${action.monitorName}" paused`, "green");
+        } else if (action.type === "delete") {
+          await activeClient.deleteMonitor(action.monitorId);
+          showToast(`Monitor "${action.monitorName}" deleted`, "green");
+        }
+        refresh();
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        showToast(`Error: ${msg}`, "red", 4e3);
+      } finally {
+        setLoadingMonitorId(null);
+      }
+    },
+    [activeClient, refresh, showToast]
+  );
+  const handleConfirm = useCallback5(() => {
+    if (pendingAction) {
+      const action = pendingAction;
+      setPendingAction(null);
+      executeAction(action);
+    }
+  }, [pendingAction, executeAction]);
+  const handleCancel = useCallback5(() => {
+    setPendingAction(null);
+  }, []);
+  useInput7((input, key) => {
+    if (connecting) return;
+    if (overlay !== "none") return;
+    if (pendingAction) return;
+    if (loadingMonitorId !== null) return;
+    if (input === "q" && mode === "normal") {
+      activeClient.disconnect();
+      exit();
+      return;
+    }
+    if (input === "i" && mode === "normal") {
+      setOverlay("instance-switcher");
+      return;
+    }
+    if (input === "c" && mode === "normal") {
+      setOverlay("cluster-switcher");
+      return;
+    }
+    if (input === "h" && mode === "normal") {
+      setOverlay("help");
+      return;
+    }
+    if (view === "detail") {
+      if (key.escape || key.backspace || key.delete) {
+        setView("list");
+        setSelectedMonitorId(null);
+        return;
+      }
+      if (input === "r") {
+        hbRefresh();
+        return;
+      }
+      return;
+    }
+    if (mode === "search") {
+      if (key.escape) {
+        setSearchQuery("");
+        setMode("normal");
+        return;
+      }
+      if (key.return) {
+        setMode("normal");
+        return;
+      }
+      return;
+    }
+    if (mode === "filter-menu") return;
+    if (input === "r") {
+      refresh();
+      return;
+    }
+    if (input === "/") {
+      setMode("search");
+      return;
+    }
+    if (input === "f") {
+      setMode("filter-menu");
+      return;
+    }
+    if (key.escape) {
+      if (hasActiveFilters) {
+        clearFilters();
+        setSelectedIndex(0);
+      }
+      return;
+    }
+    if (input === "k" || key.upArrow) {
+      setSelectedIndex((prev) => Math.max(0, prev - 1));
+      return;
+    }
+    if (input === "j" || key.downArrow) {
+      setSelectedIndex((prev) => Math.min(filteredMonitors.length - 1, prev + 1));
+      return;
+    }
+    if (key.return && selectedMonitor) {
+      setSelectedMonitorId(selectedMonitor.id);
+      setView("detail");
+      return;
+    }
+    if (input === "p" && selectedMonitor && selectedMonitor.status !== 3) {
+      setPendingAction({ type: "pause", monitorId: selectedMonitor.id, monitorName: selectedMonitor.name });
+      return;
+    }
+    if (input === "u" && selectedMonitor && selectedMonitor.status === 3) {
+      setLoadingMonitorId(selectedMonitor.id);
+      activeClient.resumeMonitor(selectedMonitor.id).then(() => {
+        showToast(`Monitor "${selectedMonitor.name}" resumed`, "green");
+        refresh();
+      }).catch((err) => {
+        showToast(`Error: ${err.message}`, "red", 4e3);
+      }).finally(() => {
+        setLoadingMonitorId(null);
+      });
+      return;
+    }
+    if (input === "d" && selectedMonitor) {
+      setPendingAction({ type: "delete", monitorId: selectedMonitor.id, monitorName: selectedMonitor.name });
+      return;
+    }
+  });
+  const clampedIndex = Math.min(selectedIndex, Math.max(0, filteredMonitors.length - 1));
+  useEffect4(() => {
+    if (clampedIndex !== selectedIndex) {
+      setSelectedIndex(clampedIndex);
+    }
+  }, [clampedIndex, selectedIndex]);
+  if (overlay === "instance-switcher") {
+    return /* @__PURE__ */ jsxs12(Box13, { flexDirection: "column", children: [
+      /* @__PURE__ */ jsx14(Header, { instanceName: displayName, connected, monitors }),
+      /* @__PURE__ */ jsx14(
+        InstanceSwitcher,
+        {
+          instances: getAllInstances(),
+          currentInstance: activeInstanceName,
+          onSelect: (name) => void switchToInstance(name),
+          onCancel: () => setOverlay("none")
+        }
+      )
+    ] });
+  }
+  if (overlay === "cluster-switcher") {
+    return /* @__PURE__ */ jsxs12(Box13, { flexDirection: "column", children: [
+      /* @__PURE__ */ jsx14(Header, { instanceName: displayName, connected, monitors }),
+      /* @__PURE__ */ jsx14(
+        ClusterSwitcher,
+        {
+          clusters: getAllClusters(),
+          currentCluster: activeClusterName,
+          onSelect: (name) => void switchToCluster(name),
+          onCancel: () => setOverlay("none")
+        }
+      )
+    ] });
+  }
+  if (overlay === "help") {
+    return /* @__PURE__ */ jsx14(HelpScreen, { onClose: () => setOverlay("none") });
+  }
+  if (connecting) {
+    return /* @__PURE__ */ jsxs12(Box13, { flexDirection: "column", children: [
+      /* @__PURE__ */ jsx14(Header, { instanceName: displayName, connected: false, monitors: [] }),
+      /* @__PURE__ */ jsx14(Text14, { color: "yellow", children: "Connecting..." })
+    ] });
+  }
+  if (loading && monitors.length === 0) {
+    return /* @__PURE__ */ jsxs12(Box13, { flexDirection: "column", children: [
+      /* @__PURE__ */ jsx14(Header, { instanceName: displayName, connected, monitors: [] }),
+      /* @__PURE__ */ jsx14(Text14, { color: "yellow", children: "Loading monitors..." })
+    ] });
+  }
+  if (error4 && monitors.length === 0) {
+    return /* @__PURE__ */ jsxs12(Box13, { flexDirection: "column", children: [
+      /* @__PURE__ */ jsx14(Header, { instanceName: displayName, connected, monitors: [] }),
+      /* @__PURE__ */ jsxs12(Text14, { color: "red", children: [
+        "Error: ",
+        error4
+      ] }),
+      /* @__PURE__ */ jsx14(Text14, { dimColor: true, children: "Press r to retry, q to quit" })
+    ] });
+  }
+  if (monitors.length === 0) {
+    return /* @__PURE__ */ jsxs12(Box13, { flexDirection: "column", children: [
+      /* @__PURE__ */ jsx14(Header, { instanceName: displayName, connected, monitors: [] }),
+      /* @__PURE__ */ jsx14(Text14, { dimColor: true, children: "No monitors found." }),
+      /* @__PURE__ */ jsx14(Footer, { view: "list", mode })
+    ] });
+  }
+  if (view === "detail") {
+    const detailMonitor = monitors.find((m) => m.id === selectedMonitorId);
+    if (!detailMonitor) {
+      setView("list");
+      return /* @__PURE__ */ jsx14(Text14, { children: "Monitor not found" });
+    }
+    return /* @__PURE__ */ jsxs12(Box13, { flexDirection: "column", children: [
+      /* @__PURE__ */ jsx14(Header, { instanceName: displayName, connected, monitors }),
+      /* @__PURE__ */ jsx14(
+        MonitorDetail,
+        {
+          monitor: detailMonitor,
+          heartbeats,
+          loading: hbLoading,
+          error: hbError
+        }
+      ),
+      toastMessage && /* @__PURE__ */ jsx14(Toast, { message: toastMessage, color: toastColor }),
+      /* @__PURE__ */ jsx14(Footer, { view: "detail", mode: "normal" })
+    ] });
+  }
+  return /* @__PURE__ */ jsxs12(Box13, { flexDirection: "column", children: [
+    /* @__PURE__ */ jsx14(
+      Header,
+      {
+        instanceName: displayName,
+        connected,
+        monitors,
+        searchQuery,
+        statusFilter,
+        filteredCount: hasActiveFilters ? filteredMonitors.length : void 0
+      }
+    ),
+    mode === "search" && /* @__PURE__ */ jsx14(SearchInput, { value: searchQuery, onChange: setSearchQuery }),
+    mode === "filter-menu" && /* @__PURE__ */ jsx14(
+      FilterMenu,
+      {
+        currentFilter: statusFilter,
+        onSelect: (status) => {
+          setStatusFilter(status);
+          setMode("normal");
+          setSelectedIndex(0);
+        },
+        onCancel: () => setMode("normal")
+      }
+    ),
+    /* @__PURE__ */ jsx14(
+      MonitorTable,
+      {
+        monitors: filteredMonitors,
+        selectedIndex: clampedIndex,
+        loadingMonitorId,
+        changedMonitorIds
+      }
+    ),
+    pendingAction && /* @__PURE__ */ jsx14(
+      ConfirmDialog,
+      {
+        message: pendingAction.type === "pause" ? `Pause "${pendingAction.monitorName}"?` : `Delete "${pendingAction.monitorName}"? This cannot be undone.`,
+        onConfirm: handleConfirm,
+        onCancel: handleCancel
+      }
+    ),
+    toastMessage && !pendingAction && /* @__PURE__ */ jsx14(Toast, { message: toastMessage, color: toastColor }),
+    !pendingAction && /* @__PURE__ */ jsx14(Footer, { view: "list", mode, selectedStatus: selectedMonitor?.status })
+  ] });
+}
+
+// src/tui/render.tsx
+import { jsx as jsx15 } from "react/jsx-runtime";
+async function renderDashboard(opts) {
+  process.stdout.write("\x1B[?1049h");
+  process.stdout.write("\x1B[H\x1B[2J");
+  const restoreScreen = () => {
+    process.stdout.write("\x1B[?1049l");
+  };
+  process.on("exit", restoreScreen);
+  process.on("SIGINT", () => {
+    restoreScreen();
+    process.exit(0);
+  });
+  process.on("SIGTERM", () => {
+    restoreScreen();
+    process.exit(0);
+  });
+  const { waitUntilExit } = render(
+    /* @__PURE__ */ jsx15(
+      App,
+      {
+        client: opts.client,
+        instanceName: opts.instanceName,
+        clusterName: opts.clusterName,
+        refreshInterval: opts.refreshInterval
+      }
+    )
+  );
+  await waitUntilExit();
+  restoreScreen();
+}
+
+// src/commands/dashboard.ts
+async function launchDashboard(opts) {
+  try {
+    const refreshInterval = Math.max(5, parseInt(opts.refresh, 10) || 30);
+    let client = null;
+    let instanceName = "";
+    try {
+      const resolved = await resolveClient({
+        instance: opts.instance,
+        cluster: opts.cluster
+      });
+      client = resolved.client;
+      instanceName = resolved.instanceName;
+      client.enableReconnection();
+    } catch {
+    }
+    await renderDashboard({
+      client,
+      instanceName: instanceName || void 0,
+      clusterName: opts.cluster ?? null,
+      refreshInterval
+    });
+    client?.disconnect();
+    process.exit(0);
+  } catch (err) {
+    handleError(err);
+  }
+}
+
 // src/index.ts
-import chalk13 from "chalk";
+import chalk12 from "chalk";
+var __dirname = dirname3(fileURLToPath2(import.meta.url));
+var pkg = JSON.parse(readFileSync4(join3(__dirname, "..", "package.json"), "utf8"));
 var program = new Command();
-program.name("kuma").description("Manage Uptime Kuma monitors, heartbeats, and status pages from your terminal.").version("0.1.0").addHelpText(
+program.name("kuma").description("Manage Uptime Kuma monitors, heartbeats, and status pages from your terminal.").version(pkg.version || "1.6.0").addHelpText(
   "beforeAll",
   `
-${chalk13.bold.cyan("Uptime Kuma CLI")} \u2014 terminal control for your monitoring stack
+${chalk12.bold.cyan("Uptime Kuma CLI")} \u2014 terminal control for your monitoring stack
 
 `
 ).addHelpText(
   "after",
   `
-${chalk13.bold("Quick Start:")}
-  ${chalk13.cyan("kuma login https://kuma.example.com")}   Authenticate (saves session)
-  ${chalk13.cyan("kuma monitors list")}                    List all monitors + status
-  ${chalk13.cyan('kuma monitors add --name "My API" --type http --url https://api.example.com')}
-  ${chalk13.cyan("kuma heartbeat view 42")}                View recent heartbeats for monitor 42
-  ${chalk13.cyan("kuma logout")}                           Clear saved session
+${chalk12.bold("Quick Start:")}
+  ${chalk12.cyan("kuma login https://kuma.example.com")}   Authenticate (saves session)
+  ${chalk12.cyan("kuma monitors list")}                    List all monitors + status
+  ${chalk12.cyan('kuma monitors add --name "My API" --type http --url https://api.example.com')}
+  ${chalk12.cyan("kuma heartbeat view 42")}                View recent heartbeats for monitor 42
+  ${chalk12.cyan("kuma logout")}                           Clear saved session
 
-${chalk13.bold("JSON / scripting mode:")}
-  ${chalk13.cyan("kuma monitors list --json")}             Output as ${chalk13.dim("{ ok, data }")} for piping
-  ${chalk13.cyan("KUMA_JSON=1 kuma monitors list")}        Activate JSON mode globally via env var
-  ${chalk13.cyan("kuma monitors list --json | jq '.data[].name'")}
+${chalk12.bold("JSON / scripting mode:")}
+  ${chalk12.cyan("kuma monitors list --json")}             Output as ${chalk12.dim("{ ok, data }")} for piping
+  ${chalk12.cyan("KUMA_JSON=1 kuma monitors list")}        Activate JSON mode globally via env var
+  ${chalk12.cyan("kuma monitors list --json | jq '.data[].name'")}
 
-${chalk13.bold("Exit codes:")}
-  ${chalk13.yellow("0")}  Success
-  ${chalk13.yellow("1")}  General error
-  ${chalk13.yellow("2")}  Connection / network error
-  ${chalk13.yellow("3")}  Not found
-  ${chalk13.yellow("4")}  Auth error (session expired \u2014 run ${chalk13.cyan("kuma login")} again)
+${chalk12.bold("Exit codes:")}
+  ${chalk12.yellow("0")}  Success
+  ${chalk12.yellow("1")}  General error
+  ${chalk12.yellow("2")}  Connection / network error
+  ${chalk12.yellow("3")}  Not found
+  ${chalk12.yellow("4")}  Auth error (session expired \u2014 run ${chalk12.cyan("kuma login")} again)
 
-${chalk13.bold("Multi-Instance:")}
-  ${chalk13.cyan("kuma login https://kuma1.example.com --as server1")}   Save as named instance
-  ${chalk13.cyan("kuma login https://kuma2.example.com --as server2")}   Save another instance
-  ${chalk13.cyan("kuma instances list")}                                 List all saved instances
-  ${chalk13.cyan("kuma use server1")}                                    Switch active instance
+${chalk12.bold("Multi-Instance:")}
+  ${chalk12.cyan("kuma login https://kuma1.example.com --as server1")}   Save as named instance
+  ${chalk12.cyan("kuma login https://kuma2.example.com --as server2")}   Save another instance
+  ${chalk12.cyan("kuma instances list")}                                 List all saved instances
+  ${chalk12.cyan("kuma use server1")}                                    Switch active instance
 
-${chalk13.bold("Clusters:")}
-  ${chalk13.dim("# Create a cluster (name is any label, --instances are login aliases)")}
-  ${chalk13.cyan("kuma cluster create my-cluster --instances server1,server2 --primary server1")}
-  ${chalk13.cyan("kuma cluster sync my-cluster")}              Sync monitors across cluster
-  ${chalk13.cyan("kuma cluster info my-cluster")}              Show cluster details
-  ${chalk13.cyan("kuma monitors list --cluster my-cluster")}   Unified view across cluster
-  ${chalk13.cyan("kuma monitors list --instance server2")}     Target a specific instance
+${chalk12.bold("Clusters:")}
+  ${chalk12.dim("# Create a cluster (name is any label, --instances are login aliases)")}
+  ${chalk12.cyan("kuma cluster create my-cluster --instances server1,server2 --primary server1")}
+  ${chalk12.cyan("kuma cluster sync my-cluster")}              Sync monitors across cluster
+  ${chalk12.cyan("kuma cluster info my-cluster")}              Show cluster details
+  ${chalk12.cyan("kuma monitors list --cluster my-cluster")}   Unified view across cluster
+  ${chalk12.cyan("kuma monitors list --instance server2")}     Target a specific instance
 
-${chalk13.dim("Config stored at:")} ${chalk13.yellow(getConfigPath())}
+${chalk12.dim("Config stored at:")} ${chalk12.yellow(getConfigPath())}
 `
 );
 program.command("status").description("Show the current connection config and login state").option("--json", "Output as JSON ({ ok, data })").addHelpText(
   "after",
   `
-${chalk13.dim("Examples:")}
-  ${chalk13.cyan("kuma status")}              Check if you are logged in
-  ${chalk13.cyan("kuma status --json")}       Machine-readable login state
+${chalk12.dim("Examples:")}
+  ${chalk12.cyan("kuma status")}              Check if you are logged in
+  ${chalk12.cyan("kuma status --json")}       Machine-readable login state
 `
 ).action((opts) => {
   const json = isJsonMode(opts);
@@ -3041,40 +4658,40 @@ ${chalk13.dim("Examples:")}
     });
   }
   if (!active && instanceCount === 0) {
-    console.log(chalk13.yellow("Not logged in. Run: kuma login <url>"));
+    console.log(chalk12.yellow("Not logged in. Run: kuma login <url>"));
     return;
   }
   if (active?.type === "instance") {
     const inst = getInstanceConfig(active.name);
     if (inst) {
-      console.log(chalk13.green(`Active: ${active.name}`) + ` (${chalk13.cyan(inst.url)})`);
+      console.log(chalk12.green(`Active: ${active.name}`) + ` (${chalk12.cyan(inst.url)})`);
       const clusterName = getInstanceCluster(active.name);
       if (clusterName) {
-        console.log(`         Member of cluster: ${chalk13.magenta(clusterName)}`);
+        console.log(`         Member of cluster: ${chalk12.magenta(clusterName)}`);
       }
     } else {
-      console.log(chalk13.yellow(`Active instance '${active.name}' not found in config.`));
+      console.log(chalk12.yellow(`Active instance '${active.name}' not found in config.`));
     }
   } else if (active?.type === "cluster") {
     const cluster = clusters[active.name];
     if (cluster) {
       const primaryInst = getInstanceConfig(cluster.primary);
-      const primaryUrl = primaryInst ? ` (${chalk13.cyan(primaryInst.url)})` : "";
-      console.log(chalk13.green(`Active: cluster '${active.name}'`) + ` primary: ${cluster.primary}${primaryUrl}`);
+      const primaryUrl = primaryInst ? ` (${chalk12.cyan(primaryInst.url)})` : "";
+      console.log(chalk12.green(`Active: cluster '${active.name}'`) + ` primary: ${cluster.primary}${primaryUrl}`);
     } else {
-      console.log(chalk13.yellow(`Active cluster '${active.name}' not found in config.`));
+      console.log(chalk12.yellow(`Active cluster '${active.name}' not found in config.`));
     }
   } else if (instanceCount === 1) {
     const name = Object.keys(instances)[0];
     const inst = instances[name];
-    console.log(chalk13.green(`Active: ${name}`) + ` (${chalk13.cyan(inst.url)})`);
+    console.log(chalk12.green(`Active: ${name}`) + ` (${chalk12.cyan(inst.url)})`);
   } else {
-    console.log(chalk13.yellow("No active context set. Run: kuma use <instance>"));
+    console.log(chalk12.yellow("No active context set. Run: kuma use <instance>"));
   }
   console.log();
-  console.log(`Instances: ${chalk13.bold(String(instanceCount))}`);
-  console.log(`Clusters:  ${chalk13.bold(String(clusterCount))}`);
-  console.log(`Config:    ${chalk13.dim(configPath)}`);
+  console.log(`Instances: ${chalk12.bold(String(instanceCount))}`);
+  console.log(`Clusters:  ${chalk12.bold(String(clusterCount))}`);
+  console.log(`Config:    ${chalk12.dim(configPath)}`);
 });
 loginCommand(program);
 logoutCommand(program);
@@ -3084,8 +4701,17 @@ statusPagesCommand(program);
 upgradeCommand(program);
 notificationsCommand(program);
 configCommand(program);
-dashboardCommand(program);
 instancesCommand(program);
 useCommand(program);
 clusterCommand(program);
-program.parse(process.argv);
+var args = process.argv.slice(2);
+var hasSubcommand = args.length > 0 && !args[0].startsWith("-");
+if (!hasSubcommand && !args.includes("-h") && !args.includes("--help") && !args.includes("-V") && !args.includes("--version")) {
+  launchDashboard({
+    instance: void 0,
+    cluster: void 0,
+    refresh: "30"
+  });
+} else {
+  program.parse(process.argv);
+}

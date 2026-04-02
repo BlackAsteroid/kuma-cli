@@ -7,8 +7,6 @@ export default defineConfig({
   platform: "node",
   clean: true,
   minify: false,
-  // Bundling everything into a single file is disabled because it causes issues with Ink and Yoga
-  // noExternal: [/.*/], 
   banner: {
     js: "#!/usr/bin/env node",
   },

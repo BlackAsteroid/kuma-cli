@@ -641,6 +641,51 @@ export class KumaClient {
     return results;
   }
 
+  // ---------------------------------------------------------------------------
+  // TUI real-time event subscriptions
+  // ---------------------------------------------------------------------------
+
+  /** Enable auto-reconnection (used by TUI dashboard for long-lived connections). */
+  enableReconnection(): void {
+    this.socket.io.opts.reconnection = true;
+    this.socket.io.opts.reconnectionAttempts = Infinity;
+    this.socket.io.opts.reconnectionDelay = 1000;
+    this.socket.io.opts.reconnectionDelayMax = 30000;
+  }
+
+  /** Subscribe to individual heartbeat push events. Returns unsubscribe function. */
+  onHeartbeat(callback: (monitorId: number, heartbeat: Heartbeat) => void): () => void {
+    const handler = (data: { monitorID: number; status: number; time: string; msg?: string; ping?: number }) => {
+      const hb: Heartbeat = { id: 0, monitorID: data.monitorID, status: data.status, time: data.time, msg: data.msg, ping: data.ping };
+      this.heartbeatCache[data.monitorID] = hb;
+      callback(data.monitorID, hb);
+    };
+    this.socket.on("heartbeat", handler);
+    return () => { this.socket.off("heartbeat", handler); };
+  }
+
+  /** Subscribe to uptime percentage push events. Returns unsubscribe function. */
+  onUptime(callback: (monitorId: number, period: string, value: number) => void): () => void {
+    const handler = (monitorId: number, period: string, value: number) => {
+      this.uptimeCache[`${monitorId}_${period}`] = value;
+      callback(monitorId, period, value);
+    };
+    this.socket.on("uptime", handler);
+    return () => { this.socket.off("uptime", handler); };
+  }
+
+  /** Subscribe to disconnect events. Returns unsubscribe function. */
+  onDisconnect(callback: (reason: string) => void): () => void {
+    this.socket.on("disconnect", callback);
+    return () => { this.socket.off("disconnect", callback); };
+  }
+
+  /** Subscribe to reconnect events. Returns unsubscribe function. */
+  onReconnect(callback: () => void): () => void {
+    this.socket.io.on("reconnect", callback);
+    return () => { this.socket.io.off("reconnect", callback); };
+  }
+
   disconnect(): void {
     this.socket.disconnect();
   }

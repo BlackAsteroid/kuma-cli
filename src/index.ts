@@ -10,10 +10,10 @@ import { statusPagesCommand } from "./commands/status-pages.js";
 import { upgradeCommand } from "./commands/upgrade.js";
 import { notificationsCommand } from "./commands/notifications.js";
 import { configCommand } from "./commands/config.js";
-import { dashboardCommand } from "./commands/dashboard.js";
 import { instancesCommand } from "./commands/instances.js";
 import { useCommand } from "./commands/use.js";
 import { clusterCommand } from "./commands/cluster.js";
+import { launchDashboard } from "./commands/dashboard.js";
 import { getConfig, getConfigPath, getAllInstances, getAllClusters, getActiveContext, getInstanceConfig, getInstanceCluster } from "./config.js";
 import chalk from "chalk";
 import { isJsonMode, jsonOut } from "./utils/output.js";
@@ -156,9 +156,21 @@ statusPagesCommand(program);
 upgradeCommand(program);
 notificationsCommand(program);
 configCommand(program);
-dashboardCommand(program);
 instancesCommand(program);
 useCommand(program);
 clusterCommand(program);
 
-program.parse(process.argv);
+// If no subcommand is given, launch the TUI dashboard
+const args = process.argv.slice(2);
+const hasSubcommand = args.length > 0 && !args[0].startsWith("-");
+
+if (!hasSubcommand && !args.includes("-h") && !args.includes("--help") && !args.includes("-V") && !args.includes("--version")) {
+  // Launch dashboard directly — supports --instance, --cluster, --refresh as top-level flags
+  launchDashboard({
+    instance: undefined,
+    cluster: undefined,
+    refresh: "30",
+  });
+} else {
+  program.parse(process.argv);
+}

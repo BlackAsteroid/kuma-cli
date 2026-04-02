@@ -1,47 +1,40 @@
-import { Command } from "commander";
-import React from "react";
-import { render } from "ink";
-import { Dashboard } from "../tui/Dashboard.js";
-import { getActiveContext, getInstanceConfig, getAllClusters } from "../config.js";
-import chalk from "chalk";
+import { resolveClient } from "../instance-manager.js";
+import { handleError } from "../utils/errors.js";
+import { renderDashboard } from "../tui/render.js";
 
-export function dashboardCommand(program: Command) {
-  program
-    .command("dashboard")
-    .description("Launch the real-time TUI dashboard")
-    .action(async () => {
-      const active = getActiveContext();
-      if (!active) {
-        console.error(chalk.red("Error: No active instance. Run 'kuma login' or 'kuma use' first."));
-        process.exit(1);
-      }
+export async function launchDashboard(opts: {
+  instance?: string;
+  cluster?: string;
+  refresh: string;
+}): Promise<void> {
+  try {
+    const refreshInterval = Math.max(5, parseInt(opts.refresh, 10) || 30);
 
-      let instanceName = "";
-      if (active.type === "instance") {
-        instanceName = active.name;
-      } else {
-        const clusters = getAllClusters();
-        const cluster = clusters[active.name];
-        if (!cluster) {
-          console.error(chalk.red(`Error: Cluster '${active.name}' not found.`));
-          process.exit(1);
-        }
-        instanceName = cluster.primary;
-      }
+    // Try to resolve an existing instance, but launch TUI either way
+    let client = null;
+    let instanceName = "";
+    try {
+      const resolved = await resolveClient({
+        instance: opts.instance,
+        cluster: opts.cluster,
+      });
+      client = resolved.client;
+      instanceName = resolved.instanceName;
+      client.enableReconnection();
+    } catch {
+      // No instance configured — TUI will show login screen
+    }
 
-      const instance = getInstanceConfig(instanceName);
-      if (!instance) {
-        console.error(chalk.red(`Error: Instance '${instanceName}' not found.`));
-        process.exit(1);
-      }
-
-      const { waitUntilExit } = render(
-        React.createElement(Dashboard, {
-          instanceName,
-          url: instance.url,
-        })
-      );
-
-      await waitUntilExit();
+    await renderDashboard({
+      client,
+      instanceName: instanceName || undefined,
+      clusterName: opts.cluster ?? null,
+      refreshInterval,
     });
+
+    client?.disconnect();
+    process.exit(0);
+  } catch (err) {
+    handleError(err);
+  }
 }
