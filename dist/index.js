@@ -324,9 +324,9 @@ var require_help = __commonJS({
        * @returns {string}
        */
       subcommandTerm(cmd) {
-        const args = cmd.registeredArguments.map((arg) => humanReadableArgName(arg)).join(" ");
+        const args2 = cmd.registeredArguments.map((arg) => humanReadableArgName(arg)).join(" ");
         return cmd._name + (cmd._aliases[0] ? "|" + cmd._aliases[0] : "") + (cmd.options.length ? " [options]" : "") + // simplistic check for non-help option
-        (args ? " " + args : "");
+        (args2 ? " " + args2 : "");
       }
       /**
        * Get the option term to show in the list of options.
@@ -1199,7 +1199,7 @@ var require_command = __commonJS({
     "use strict";
     var EventEmitter = require("events").EventEmitter;
     var childProcess = require("child_process");
-    var path5 = require("path");
+    var path6 = require("path");
     var fs3 = require("fs");
     var process9 = require("process");
     var { Argument: Argument2, humanReadableArgName } = require_argument();
@@ -1331,7 +1331,7 @@ var require_command = __commonJS({
           desc = null;
         }
         opts = opts || {};
-        const [, name, args] = nameAndArgs.match(/([^ ]+) *(.*)/);
+        const [, name, args2] = nameAndArgs.match(/([^ ]+) *(.*)/);
         const cmd = this.createCommand(name);
         if (desc) {
           cmd.description(desc);
@@ -1340,7 +1340,7 @@ var require_command = __commonJS({
         if (opts.isDefault) this._defaultCommandName = cmd._name;
         cmd._hidden = !!(opts.noHelp || opts.hidden);
         cmd._executableFile = opts.executableFile || null;
-        if (args) cmd.arguments(args);
+        if (args2) cmd.arguments(args2);
         this._registerCommand(cmd);
         cmd.parent = this;
         cmd.copyInheritedSettings(this);
@@ -1665,9 +1665,9 @@ Expecting one of '${allowedValues.join("', '")}'`);
        * @return {Command} `this` command for chaining
        */
       action(fn) {
-        const listener = (args) => {
+        const listener = (args2) => {
           const expectedArgsCount = this.registeredArguments.length;
-          const actionArgs = args.slice(0, expectedArgsCount);
+          const actionArgs = args2.slice(0, expectedArgsCount);
           if (this._storeOptionsAsProperties) {
             actionArgs[expectedArgsCount] = this;
           } else {
@@ -2207,14 +2207,14 @@ Expecting one of '${allowedValues.join("', '")}'`);
        *
        * @private
        */
-      _executeSubCommand(subcommand, args) {
-        args = args.slice();
+      _executeSubCommand(subcommand, args2) {
+        args2 = args2.slice();
         let launchWithNode = false;
         const sourceExt = [".js", ".ts", ".tsx", ".mjs", ".cjs"];
         function findFile(baseDir, baseName) {
-          const localBin = path5.resolve(baseDir, baseName);
+          const localBin = path6.resolve(baseDir, baseName);
           if (fs3.existsSync(localBin)) return localBin;
-          if (sourceExt.includes(path5.extname(baseName))) return void 0;
+          if (sourceExt.includes(path6.extname(baseName))) return void 0;
           const foundExt = sourceExt.find(
             (ext) => fs3.existsSync(`${localBin}${ext}`)
           );
@@ -2232,17 +2232,17 @@ Expecting one of '${allowedValues.join("', '")}'`);
           } catch {
             resolvedScriptPath = this._scriptPath;
           }
-          executableDir = path5.resolve(
-            path5.dirname(resolvedScriptPath),
+          executableDir = path6.resolve(
+            path6.dirname(resolvedScriptPath),
             executableDir
           );
         }
         if (executableDir) {
           let localFile = findFile(executableDir, executableFile);
           if (!localFile && !subcommand._executableFile && this._scriptPath) {
-            const legacyName = path5.basename(
+            const legacyName = path6.basename(
               this._scriptPath,
-              path5.extname(this._scriptPath)
+              path6.extname(this._scriptPath)
             );
             if (legacyName !== this._name) {
               localFile = findFile(
@@ -2253,15 +2253,15 @@ Expecting one of '${allowedValues.join("', '")}'`);
           }
           executableFile = localFile || executableFile;
         }
-        launchWithNode = sourceExt.includes(path5.extname(executableFile));
+        launchWithNode = sourceExt.includes(path6.extname(executableFile));
         let proc;
         if (process9.platform !== "win32") {
           if (launchWithNode) {
-            args.unshift(executableFile);
-            args = incrementNodeInspectorPort(process9.execArgv).concat(args);
-            proc = childProcess.spawn(process9.argv[0], args, { stdio: "inherit" });
+            args2.unshift(executableFile);
+            args2 = incrementNodeInspectorPort(process9.execArgv).concat(args2);
+            proc = childProcess.spawn(process9.argv[0], args2, { stdio: "inherit" });
           } else {
-            proc = childProcess.spawn(executableFile, args, { stdio: "inherit" });
+            proc = childProcess.spawn(executableFile, args2, { stdio: "inherit" });
           }
         } else {
           this._checkForMissingExecutable(
@@ -2269,9 +2269,9 @@ Expecting one of '${allowedValues.join("', '")}'`);
             executableDir,
             subcommand._name
           );
-          args.unshift(executableFile);
-          args = incrementNodeInspectorPort(process9.execArgv).concat(args);
-          proc = childProcess.spawn(process9.execPath, args, { stdio: "inherit" });
+          args2.unshift(executableFile);
+          args2 = incrementNodeInspectorPort(process9.execArgv).concat(args2);
+          proc = childProcess.spawn(process9.execPath, args2, { stdio: "inherit" });
         }
         if (!proc.killed) {
           const signals = ["SIGUSR1", "SIGUSR2", "SIGTERM", "SIGINT", "SIGHUP"];
@@ -2654,7 +2654,7 @@ Expecting one of '${allowedValues.join("', '")}'`);
        * @param {string[]} args
        * @return {{operands: string[], unknown: string[]}}
        */
-      parseOptions(args) {
+      parseOptions(args2) {
         const operands = [];
         const unknown = [];
         let dest = operands;
@@ -2670,12 +2670,12 @@ Expecting one of '${allowedValues.join("', '")}'`);
         let activeVariadicOption = null;
         let activeGroup = null;
         let i = 0;
-        while (i < args.length || activeGroup) {
-          const arg = activeGroup ?? args[i++];
+        while (i < args2.length || activeGroup) {
+          const arg = activeGroup ?? args2[i++];
           activeGroup = null;
           if (arg === "--") {
             if (dest === unknown) dest.push(arg);
-            dest.push(...args.slice(i));
+            dest.push(...args2.slice(i));
             break;
           }
           if (activeVariadicOption && (!maybeOption(arg) || negativeNumberArg(arg))) {
@@ -2687,13 +2687,13 @@ Expecting one of '${allowedValues.join("', '")}'`);
             const option = this._findOption(arg);
             if (option) {
               if (option.required) {
-                const value2 = args[i++];
+                const value2 = args2[i++];
                 if (value2 === void 0) this.optionMissingArgument(option);
                 this.emit(`option:${option.name()}`, value2);
               } else if (option.optional) {
                 let value2 = null;
-                if (i < args.length && (!maybeOption(args[i]) || negativeNumberArg(args[i]))) {
-                  value2 = args[i++];
+                if (i < args2.length && (!maybeOption(args2[i]) || negativeNumberArg(args2[i]))) {
+                  value2 = args2[i++];
                 }
                 this.emit(`option:${option.name()}`, value2);
               } else {
@@ -2729,18 +2729,18 @@ Expecting one of '${allowedValues.join("', '")}'`);
           if ((this._enablePositionalOptions || this._passThroughOptions) && operands.length === 0 && unknown.length === 0) {
             if (this._findCommand(arg)) {
               operands.push(arg);
-              unknown.push(...args.slice(i));
+              unknown.push(...args2.slice(i));
               break;
             } else if (this._getHelpCommand() && arg === this._getHelpCommand().name()) {
-              operands.push(arg, ...args.slice(i));
+              operands.push(arg, ...args2.slice(i));
               break;
             } else if (this._defaultCommandName) {
-              unknown.push(arg, ...args.slice(i));
+              unknown.push(arg, ...args2.slice(i));
               break;
             }
           }
           if (this._passThroughOptions) {
-            dest.push(arg, ...args.slice(i));
+            dest.push(arg, ...args2.slice(i));
             break;
           }
           dest.push(arg);
@@ -3069,13 +3069,13 @@ Expecting one of '${allowedValues.join("', '")}'`);
       usage(str2) {
         if (str2 === void 0) {
           if (this._usage) return this._usage;
-          const args = this.registeredArguments.map((arg) => {
+          const args2 = this.registeredArguments.map((arg) => {
             return humanReadableArgName(arg);
           });
           return [].concat(
             this.options.length || this._helpOption !== null ? "[options]" : [],
             this.commands.length ? "[command]" : [],
-            this.registeredArguments.length ? args : []
+            this.registeredArguments.length ? args2 : []
           ).join(" ");
         }
         this._usage = str2;
@@ -3168,7 +3168,7 @@ Expecting one of '${allowedValues.join("', '")}'`);
        * @return {Command}
        */
       nameFromFilename(filename) {
-        this._name = path5.basename(filename, path5.extname(filename));
+        this._name = path6.basename(filename, path6.extname(filename));
         return this;
       }
       /**
@@ -3182,9 +3182,9 @@ Expecting one of '${allowedValues.join("', '")}'`);
        * @param {string} [path]
        * @return {(string|null|Command)}
        */
-      executableDir(path6) {
-        if (path6 === void 0) return this._executableDir;
-        this._executableDir = path6;
+      executableDir(path7) {
+        if (path7 === void 0) return this._executableDir;
+        this._executableDir = path7;
         return this;
       }
       /**
@@ -3390,17 +3390,17 @@ Expecting one of '${allowedValues.join("', '")}'`);
        * @param {Array} args - array of options to search for help flags
        * @private
        */
-      _outputHelpIfRequested(args) {
+      _outputHelpIfRequested(args2) {
         const helpOption = this._getHelpOption();
-        const helpRequested = helpOption && args.find((arg) => helpOption.is(arg));
+        const helpRequested = helpOption && args2.find((arg) => helpOption.is(arg));
         if (helpRequested) {
           this.outputHelp();
           this._exit(0, "commander.helpDisplayed", "(outputHelp)");
         }
       }
     };
-    function incrementNodeInspectorPort(args) {
-      return args.map((arg) => {
+    function incrementNodeInspectorPort(args2) {
+      return args2.map((arg) => {
         if (!arg.startsWith("--inspect")) {
           return arg;
         }
@@ -3868,9 +3868,9 @@ var require_utils = __commonJS({
       }
       return target;
     };
-    exports2.merge = (...args) => {
+    exports2.merge = (...args2) => {
       let target = {};
-      for (let ele of args) exports2.mixin(target, ele);
+      for (let ele of args2) exports2.mixin(target, ele);
       return target;
     };
     exports2.mixinEmitter = (obj, emitter) => {
@@ -4037,8 +4037,8 @@ var require_queue = __commonJS({
       constructor(jobRunner) {
         this._jobRunner = jobRunner;
       }
-      enqueue = (...args) => {
-        this._queue.push(args);
+      enqueue = (...args2) => {
+        this._queue.push(args2);
         this._dequeue();
       };
       destroy() {
@@ -5012,8 +5012,8 @@ var require_prompt = __commonJS({
       isValue(value2) {
         return value2 != null && value2 !== "";
       }
-      resolve(value2, ...args) {
-        return utils.resolve(this, value2, ...args);
+      resolve(value2, ...args2) {
+        return utils.resolve(this, value2, ...args2);
       }
       get base() {
         return _Prompt.prototype;
@@ -7493,10 +7493,10 @@ var require_survey = __commonJS({
           this.state.header = header.join("\n   ");
         }
       }
-      async toChoices(...args) {
+      async toChoices(...args2) {
         if (this.createdScales) return false;
         this.createdScales = true;
-        let choices = await super.toChoices(...args);
+        let choices = await super.toChoices(...args2);
         for (let choice of choices) {
           choice.scale = createScale(5, this.options);
           choice.scaleIdx = 2;
@@ -7902,9 +7902,9 @@ var require_enquirer = __commonJS({
           });
         }
         let emit = prompt3.emit.bind(prompt3);
-        prompt3.emit = (...args) => {
-          this.emit.call(this, ...args);
-          return emit(...args);
+        prompt3.emit = (...args2) => {
+          this.emit.call(this, ...args2);
+          return emit(...args2);
         };
         this.emit("prompt", prompt3, this);
         if (opts.autofill && value2 != null) {
@@ -7980,9 +7980,9 @@ var require_enquirer = __commonJS({
         const fn = (questions, ...rest) => {
           let enquirer3 = new this(...rest);
           let emit = enquirer3.emit.bind(enquirer3);
-          enquirer3.emit = (...args) => {
-            fn.emit(...args);
-            return emit(...args);
+          enquirer3.emit = (...args2) => {
+            fn.emit(...args2);
+            return emit(...args2);
           };
           return enquirer3.prompt(questions);
         };
@@ -8567,7 +8567,7 @@ var require_common = __commonJS({
         let enableOverride = null;
         let namespacesCache;
         let enabledCache;
-        function debug12(...args) {
+        function debug12(...args2) {
           if (!debug12.enabled) {
             return;
           }
@@ -8578,28 +8578,28 @@ var require_common = __commonJS({
           self.prev = prevTime;
           self.curr = curr;
           prevTime = curr;
-          args[0] = createDebug.coerce(args[0]);
-          if (typeof args[0] !== "string") {
-            args.unshift("%O");
+          args2[0] = createDebug.coerce(args2[0]);
+          if (typeof args2[0] !== "string") {
+            args2.unshift("%O");
           }
           let index = 0;
-          args[0] = args[0].replace(/%([a-zA-Z%])/g, (match, format) => {
+          args2[0] = args2[0].replace(/%([a-zA-Z%])/g, (match, format) => {
             if (match === "%%") {
               return "%";
             }
             index++;
             const formatter = createDebug.formatters[format];
             if (typeof formatter === "function") {
-              const val = args[index];
+              const val = args2[index];
               match = formatter.call(self, val);
-              args.splice(index, 1);
+              args2.splice(index, 1);
               index--;
             }
             return match;
           });
-          createDebug.formatArgs.call(self, args);
+          createDebug.formatArgs.call(self, args2);
           const logFn = self.log || createDebug.log;
-          logFn.apply(self, args);
+          logFn.apply(self, args2);
         }
         debug12.namespace = namespace;
         debug12.useColors = createDebug.useColors();
@@ -8822,16 +8822,16 @@ var require_browser = __commonJS({
       typeof navigator !== "undefined" && navigator.userAgent && (m = navigator.userAgent.toLowerCase().match(/firefox\/(\d+)/)) && parseInt(m[1], 10) >= 31 || // Double check webkit in userAgent just in case we are in a worker
       typeof navigator !== "undefined" && navigator.userAgent && navigator.userAgent.toLowerCase().match(/applewebkit\/(\d+)/);
     }
-    function formatArgs(args) {
-      args[0] = (this.useColors ? "%c" : "") + this.namespace + (this.useColors ? " %c" : " ") + args[0] + (this.useColors ? "%c " : " ") + "+" + module2.exports.humanize(this.diff);
+    function formatArgs(args2) {
+      args2[0] = (this.useColors ? "%c" : "") + this.namespace + (this.useColors ? " %c" : " ") + args2[0] + (this.useColors ? "%c " : " ") + "+" + module2.exports.humanize(this.diff);
       if (!this.useColors) {
         return;
       }
       const c = "color: " + this.color;
-      args.splice(1, 0, c, "color: inherit");
+      args2.splice(1, 0, c, "color: inherit");
       let index = 0;
       let lastC = 0;
-      args[0].replace(/%[a-zA-Z%]/g, (match) => {
+      args2[0].replace(/%[a-zA-Z%]/g, (match) => {
         if (match === "%%") {
           return;
         }
@@ -8840,7 +8840,7 @@ var require_browser = __commonJS({
           lastC = index;
         }
       });
-      args.splice(lastC, 0, c);
+      args2.splice(lastC, 0, c);
     }
     exports2.log = console.debug || console.log || (() => {
     });
@@ -9122,16 +9122,16 @@ var require_node = __commonJS({
     function useColors() {
       return "colors" in exports2.inspectOpts ? Boolean(exports2.inspectOpts.colors) : tty2.isatty(process.stderr.fd);
     }
-    function formatArgs(args) {
+    function formatArgs(args2) {
       const { namespace: name, useColors: useColors2 } = this;
       if (useColors2) {
         const c = this.color;
         const colorCode = "\x1B[3" + (c < 8 ? c : "8;5;" + c);
         const prefix = `  ${colorCode};1m${name} \x1B[0m`;
-        args[0] = prefix + args[0].split("\n").join("\n" + prefix);
-        args.push(colorCode + "m+" + module2.exports.humanize(this.diff) + "\x1B[0m");
+        args2[0] = prefix + args2[0].split("\n").join("\n" + prefix);
+        args2.push(colorCode + "m+" + module2.exports.humanize(this.diff) + "\x1B[0m");
       } else {
-        args[0] = getDate() + name + " " + args[0];
+        args2[0] = getDate() + name + " " + args2[0];
       }
     }
     function getDate() {
@@ -9140,8 +9140,8 @@ var require_node = __commonJS({
       }
       return (/* @__PURE__ */ new Date()).toISOString() + " ";
     }
-    function log(...args) {
-      return process.stderr.write(util.formatWithOptions(exports2.inspectOpts, ...args) + "\n");
+    function log(...args2) {
+      return process.stderr.write(util.formatWithOptions(exports2.inspectOpts, ...args2) + "\n");
     }
     function save(namespaces) {
       if (namespaces) {
@@ -12850,23 +12850,23 @@ var require_code = __commonJS({
     };
     exports2._Code = _Code;
     exports2.nil = new _Code("");
-    function _(strs, ...args) {
+    function _(strs, ...args2) {
       const code = [strs[0]];
       let i = 0;
-      while (i < args.length) {
-        addCodeArg(code, args[i]);
+      while (i < args2.length) {
+        addCodeArg(code, args2[i]);
         code.push(strs[++i]);
       }
       return new _Code(code);
     }
     exports2._ = _;
     var plus = new _Code("+");
-    function str2(strs, ...args) {
+    function str2(strs, ...args2) {
       const expr = [safeStringify(strs[0])];
       let i = 0;
-      while (i < args.length) {
+      while (i < args2.length) {
         expr.push(plus);
-        addCodeArg(expr, args[i]);
+        addCodeArg(expr, args2[i]);
         expr.push(plus, safeStringify(strs[++i]));
       }
       optimize(expr);
@@ -13421,10 +13421,10 @@ var require_codegen = __commonJS({
       }
     };
     var Func = class extends BlockNode {
-      constructor(name, args, async) {
+      constructor(name, args2, async) {
         super();
         this.name = name;
-        this.args = args;
+        this.args = args2;
         this.async = async;
       }
       render(opts) {
@@ -13699,8 +13699,8 @@ var require_codegen = __commonJS({
         return this;
       }
       // `function` heading (or definition if funcBody is passed)
-      func(name, args = code_1.nil, async, funcBody) {
-        this._blockNode(new Func(name, args, async));
+      func(name, args2 = code_1.nil, async, funcBody) {
+        this._blockNode(new Func(name, args2, async));
         if (funcBody)
           this.code(funcBody).endFunc();
         return this;
@@ -13794,13 +13794,13 @@ var require_codegen = __commonJS({
     }
     exports2.not = not;
     var andCode = mappend(exports2.operators.AND);
-    function and(...args) {
-      return args.reduce(andCode);
+    function and(...args2) {
+      return args2.reduce(andCode);
     }
     exports2.and = and;
     var orCode = mappend(exports2.operators.OR);
-    function or(...args) {
-      return args.reduce(orCode);
+    function or(...args2) {
+      return args2.reduce(orCode);
     }
     exports2.or = or;
     function mappend(op) {
@@ -14533,8 +14533,8 @@ var require_code2 = __commonJS({
       ];
       if (it.opts.dynamicRef)
         valCxt.push([names_1.default.dynamicAnchors, names_1.default.dynamicAnchors]);
-      const args = (0, codegen_1._)`${dataAndSchema}, ${gen.object(...valCxt)}`;
-      return context !== codegen_1.nil ? (0, codegen_1._)`${func}.call(${context}, ${args})` : (0, codegen_1._)`${func}(${args})`;
+      const args2 = (0, codegen_1._)`${dataAndSchema}, ${gen.object(...valCxt)}`;
+      return context !== codegen_1.nil ? (0, codegen_1._)`${func}.call(${context}, ${args2})` : (0, codegen_1._)`${func}(${args2})`;
     }
     exports2.callValidateCode = callValidateCode;
     var newRegExp = (0, codegen_1._)`new RegExp`;
@@ -15986,8 +15986,8 @@ var require_utils2 = __commonJS({
       }
       return ind;
     }
-    function removeDotSegments(path5) {
-      let input = path5;
+    function removeDotSegments(path6) {
+      let input = path6;
       const output = [];
       let nextSlash = -1;
       let len = 0;
@@ -16186,8 +16186,8 @@ var require_schemes = __commonJS({
         wsComponent.secure = void 0;
       }
       if (wsComponent.resourceName) {
-        const [path5, query] = wsComponent.resourceName.split("?");
-        wsComponent.path = path5 && path5 !== "/" ? path5 : void 0;
+        const [path6, query] = wsComponent.resourceName.split("?");
+        wsComponent.path = path6 && path6 !== "/" ? path6 : void 0;
         wsComponent.query = query;
         wsComponent.resourceName = void 0;
       }
@@ -20422,7 +20422,7 @@ var require_constants2 = __commonJS({
 var require_debug = __commonJS({
   "node_modules/semver/internal/debug.js"(exports2, module2) {
     "use strict";
-    var debug12 = typeof process === "object" && process.env && process.env.NODE_DEBUG && /\bsemver\b/i.test(process.env.NODE_DEBUG) ? (...args) => console.error("SEMVER", ...args) : () => {
+    var debug12 = typeof process === "object" && process.env && process.env.NODE_DEBUG && /\bsemver\b/i.test(process.env.NODE_DEBUG) ? (...args2) => console.error("SEMVER", ...args2) : () => {
     };
     module2.exports = debug12;
   }
@@ -23308,8 +23308,8 @@ var require_colors = __commonJS({
     var proto2 = defineProps(function colors2() {
     }, styles3);
     function applyStyle2() {
-      var args = Array.prototype.slice.call(arguments);
-      var str2 = args.map(function(arg) {
+      var args2 = Array.prototype.slice.call(arguments);
+      var str2 = args2.map(function(arg) {
         if (arg != null && arg.constructor === String) {
           return arg;
         } else {
@@ -23726,8 +23726,8 @@ var require_cell = __commonJS({
       mergeTableOptions() {
       }
     };
-    function firstDefined(...args) {
-      return args.filter((v) => v !== void 0 && v !== null).shift();
+    function firstDefined(...args2) {
+      return args2.filter((v) => v !== void 0 && v !== null).shift();
     }
     function setOption(objA, objB, nameB, targetObj) {
       let nameA = nameB.split("-");
@@ -24419,14 +24419,14 @@ Emitter.prototype.off = Emitter.prototype.removeListener = Emitter.prototype.rem
 };
 Emitter.prototype.emit = function(event) {
   this._callbacks = this._callbacks || {};
-  var args = new Array(arguments.length - 1), callbacks = this._callbacks["$" + event];
+  var args2 = new Array(arguments.length - 1), callbacks = this._callbacks["$" + event];
   for (var i = 1; i < arguments.length; i++) {
-    args[i - 1] = arguments[i];
+    args2[i - 1] = arguments[i];
   }
   if (callbacks) {
     callbacks = callbacks.slice(0);
     for (var i = 0, len = callbacks.length; i < len; ++i) {
-      callbacks[i].apply(this, args);
+      callbacks[i].apply(this, args2);
     }
   }
   return this;
@@ -25374,12 +25374,12 @@ function parse2(str2) {
   uri.queryKey = queryKey(uri, uri["query"]);
   return uri;
 }
-function pathNames(obj, path5) {
-  const regx = /\/{2,9}/g, names = path5.replace(regx, "/").split("/");
-  if (path5.slice(0, 1) == "/" || path5.length === 0) {
+function pathNames(obj, path6) {
+  const regx = /\/{2,9}/g, names = path6.replace(regx, "/").split("/");
+  if (path6.slice(0, 1) == "/" || path6.length === 0) {
     names.splice(0, 1);
   }
-  if (path5.slice(-1) == "/") {
+  if (path6.slice(-1) == "/") {
     names.splice(names.length - 1, 1);
   }
   return names;
@@ -25996,7 +25996,7 @@ var protocol2 = Socket.protocol;
 // node_modules/socket.io-client/build/esm-debug/url.js
 var import_debug7 = __toESM(require_src(), 1);
 var debug7 = (0, import_debug7.default)("socket.io-client:url");
-function url(uri, path5 = "", loc) {
+function url(uri, path6 = "", loc) {
   let obj = uri;
   loc = loc || typeof location !== "undefined" && location;
   if (null == uri)
@@ -26030,7 +26030,7 @@ function url(uri, path5 = "", loc) {
   obj.path = obj.path || "/";
   const ipv6 = obj.host.indexOf(":") !== -1;
   const host = ipv6 ? "[" + obj.host + "]" : obj.host;
-  obj.id = obj.protocol + "://" + host + ":" + obj.port + path5;
+  obj.id = obj.protocol + "://" + host + ":" + obj.port + path6;
   obj.href = obj.protocol + "://" + host + (loc && loc.port === obj.port ? "" : ":" + obj.port);
   return obj;
 }
@@ -26583,9 +26583,9 @@ var Socket2 = class extends Emitter {
    *
    * @return self
    */
-  send(...args) {
-    args.unshift("message");
-    this.emit.apply(this, args);
+  send(...args2) {
+    args2.unshift("message");
+    this.emit.apply(this, args2);
     return this;
   }
   /**
@@ -26605,26 +26605,26 @@ var Socket2 = class extends Emitter {
    *
    * @return self
    */
-  emit(ev, ...args) {
+  emit(ev, ...args2) {
     var _a, _b, _c;
     if (RESERVED_EVENTS2.hasOwnProperty(ev)) {
       throw new Error('"' + ev.toString() + '" is a reserved event name');
     }
-    args.unshift(ev);
+    args2.unshift(ev);
     if (this._opts.retries && !this.flags.fromQueue && !this.flags.volatile) {
-      this._addToQueue(args);
+      this._addToQueue(args2);
       return this;
     }
     const packet = {
       type: PacketType.EVENT,
-      data: args
+      data: args2
     };
     packet.options = {};
     packet.options.compress = this.flags.compress !== false;
-    if ("function" === typeof args[args.length - 1]) {
+    if ("function" === typeof args2[args2.length - 1]) {
       const id = this.ids++;
       debug9("emitting packet with ack id %d", id);
-      const ack = args.pop();
+      const ack = args2.pop();
       this._registerAckCallback(id, ack);
       packet.id = id;
     }
@@ -26663,9 +26663,9 @@ var Socket2 = class extends Emitter {
       debug9("event with ack id %d has timed out after %d ms", id, timeout);
       ack.call(this, new Error("operation has timed out"));
     }, timeout);
-    const fn = (...args) => {
+    const fn = (...args2) => {
       this.io.clearTimeoutFn(timer);
-      ack.apply(this, args);
+      ack.apply(this, args2);
     };
     fn.withError = true;
     this.acks[id] = fn;
@@ -26686,14 +26686,14 @@ var Socket2 = class extends Emitter {
    *
    * @return a Promise that will be fulfilled when the server acknowledges the event
    */
-  emitWithAck(ev, ...args) {
+  emitWithAck(ev, ...args2) {
     return new Promise((resolve, reject) => {
       const fn = (arg1, arg2) => {
         return arg1 ? reject(arg1) : resolve(arg2);
       };
       fn.withError = true;
-      args.push(fn);
-      this.emit(ev, ...args);
+      args2.push(fn);
+      this.emit(ev, ...args2);
     });
   }
   /**
@@ -26701,19 +26701,19 @@ var Socket2 = class extends Emitter {
    * @param args
    * @private
    */
-  _addToQueue(args) {
+  _addToQueue(args2) {
     let ack;
-    if (typeof args[args.length - 1] === "function") {
-      ack = args.pop();
+    if (typeof args2[args2.length - 1] === "function") {
+      ack = args2.pop();
     }
     const packet = {
       id: this._queueSeq++,
       tryCount: 0,
       pending: false,
-      args,
+      args: args2,
       flags: Object.assign({ fromQueue: true }, this.flags)
     };
-    args.push((err, ...responseArgs) => {
+    args2.push((err, ...responseArgs) => {
       if (packet !== this._queue[0]) {
         return debug9("packet [%d] already acknowledged", packet.id);
       }
@@ -26885,28 +26885,28 @@ var Socket2 = class extends Emitter {
    * @private
    */
   onevent(packet) {
-    const args = packet.data || [];
-    debug9("emitting event %j", args);
+    const args2 = packet.data || [];
+    debug9("emitting event %j", args2);
     if (null != packet.id) {
       debug9("attaching ack callback to event");
-      args.push(this.ack(packet.id));
+      args2.push(this.ack(packet.id));
     }
     if (this.connected) {
-      this.emitEvent(args);
+      this.emitEvent(args2);
     } else {
-      this.receiveBuffer.push(Object.freeze(args));
+      this.receiveBuffer.push(Object.freeze(args2));
     }
   }
-  emitEvent(args) {
+  emitEvent(args2) {
     if (this._anyListeners && this._anyListeners.length) {
       const listeners = this._anyListeners.slice();
       for (const listener of listeners) {
-        listener.apply(this, args);
+        listener.apply(this, args2);
       }
     }
-    super.emit.apply(this, args);
-    if (this._pid && args.length && typeof args[args.length - 1] === "string") {
-      this._lastOffset = args[args.length - 1];
+    super.emit.apply(this, args2);
+    if (this._pid && args2.length && typeof args2[args2.length - 1] === "string") {
+      this._lastOffset = args2[args2.length - 1];
     }
   }
   /**
@@ -26917,15 +26917,15 @@ var Socket2 = class extends Emitter {
   ack(id) {
     const self = this;
     let sent = false;
-    return function(...args) {
+    return function(...args2) {
       if (sent)
         return;
       sent = true;
-      debug9("sending ack %j", args);
+      debug9("sending ack %j", args2);
       self.packet({
         type: PacketType.ACK,
         id,
-        data: args
+        data: args2
       });
     };
   }
@@ -26969,7 +26969,7 @@ var Socket2 = class extends Emitter {
    * @private
    */
   emitBuffered() {
-    this.receiveBuffer.forEach((args) => this.emitEvent(args));
+    this.receiveBuffer.forEach((args2) => this.emitEvent(args2));
     this.receiveBuffer = [];
     this.sendBuffer.forEach((packet) => {
       this.notifyOutgoingListeners(packet);
@@ -27661,8 +27661,8 @@ function lookup(uri, opts) {
   const parsed = url(uri, opts.path || "/socket.io");
   const source = parsed.source;
   const id = parsed.id;
-  const path5 = parsed.path;
-  const sameNamespace = cache[id] && path5 in cache[id]["nsps"];
+  const path6 = parsed.path;
+  const sameNamespace = cache[id] && path6 in cache[id]["nsps"];
   const newConnection = opts.forceNew || opts["force new connection"] || false === opts.multiplex || sameNamespace;
   let io;
   if (newConnection) {
@@ -28165,6 +28165,53 @@ var KumaClient = class {
     }
     return results;
   }
+  // ---------------------------------------------------------------------------
+  // TUI real-time event subscriptions
+  // ---------------------------------------------------------------------------
+  /** Enable auto-reconnection (used by TUI dashboard for long-lived connections). */
+  enableReconnection() {
+    this.socket.io.opts.reconnection = true;
+    this.socket.io.opts.reconnectionAttempts = Infinity;
+    this.socket.io.opts.reconnectionDelay = 1e3;
+    this.socket.io.opts.reconnectionDelayMax = 3e4;
+  }
+  /** Subscribe to individual heartbeat push events. Returns unsubscribe function. */
+  onHeartbeat(callback) {
+    const handler = (data) => {
+      const hb = { id: 0, monitorID: data.monitorID, status: data.status, time: data.time, msg: data.msg, ping: data.ping };
+      this.heartbeatCache[data.monitorID] = hb;
+      callback(data.monitorID, hb);
+    };
+    this.socket.on("heartbeat", handler);
+    return () => {
+      this.socket.off("heartbeat", handler);
+    };
+  }
+  /** Subscribe to uptime percentage push events. Returns unsubscribe function. */
+  onUptime(callback) {
+    const handler = (monitorId, period, value2) => {
+      this.uptimeCache[`${monitorId}_${period}`] = value2;
+      callback(monitorId, period, value2);
+    };
+    this.socket.on("uptime", handler);
+    return () => {
+      this.socket.off("uptime", handler);
+    };
+  }
+  /** Subscribe to disconnect events. Returns unsubscribe function. */
+  onDisconnect(callback) {
+    this.socket.on("disconnect", callback);
+    return () => {
+      this.socket.off("disconnect", callback);
+    };
+  }
+  /** Subscribe to reconnect events. Returns unsubscribe function. */
+  onReconnect(callback) {
+    this.socket.io.on("reconnect", callback);
+    return () => {
+      this.socket.io.off("reconnect", callback);
+    };
+  }
   disconnect() {
     this.socket.disconnect();
   }
@@ -28221,16 +28268,16 @@ function processSegment(segment, parts2) {
   }
   return true;
 }
-function parsePath(path5) {
-  if (typeof path5 !== "string") {
-    throw new TypeError(`Expected a string, got ${typeof path5}`);
+function parsePath(path6) {
+  if (typeof path6 !== "string") {
+    throw new TypeError(`Expected a string, got ${typeof path6}`);
   }
   const parts2 = [];
   let currentSegment = "";
   let currentPart = "start";
   let isEscaping = false;
   let position = 0;
-  for (const character of path5) {
+  for (const character of path6) {
     position++;
     if (isEscaping) {
       currentSegment += character;
@@ -28340,13 +28387,13 @@ function parsePath(path5) {
   }
   return parts2;
 }
-function normalizePath(path5) {
-  if (typeof path5 === "string") {
-    return parsePath(path5);
+function normalizePath(path6) {
+  if (typeof path6 === "string") {
+    return parsePath(path6);
   }
-  if (Array.isArray(path5)) {
+  if (Array.isArray(path6)) {
     const normalized = [];
-    for (const [index, segment] of path5.entries()) {
+    for (const [index, segment] of path6.entries()) {
       if (typeof segment !== "string" && typeof segment !== "number") {
         throw new TypeError(`Expected a string or number for path segment at index ${index}, got ${typeof segment}`);
       }
@@ -28366,11 +28413,11 @@ function normalizePath(path5) {
   }
   return [];
 }
-function getProperty(object, path5, value2) {
-  if (!isObject2(object) || typeof path5 !== "string" && !Array.isArray(path5)) {
+function getProperty(object, path6, value2) {
+  if (!isObject2(object) || typeof path6 !== "string" && !Array.isArray(path6)) {
     return value2 === void 0 ? object : value2;
   }
-  const pathArray = normalizePath(path5);
+  const pathArray = normalizePath(path6);
   if (pathArray.length === 0) {
     return value2;
   }
@@ -28386,12 +28433,12 @@ function getProperty(object, path5, value2) {
   }
   return object === void 0 ? value2 : object;
 }
-function setProperty(object, path5, value2) {
-  if (!isObject2(object) || typeof path5 !== "string" && !Array.isArray(path5)) {
+function setProperty(object, path6, value2) {
+  if (!isObject2(object) || typeof path6 !== "string" && !Array.isArray(path6)) {
     return object;
   }
   const root = object;
-  const pathArray = normalizePath(path5);
+  const pathArray = normalizePath(path6);
   if (pathArray.length === 0) {
     return object;
   }
@@ -28408,11 +28455,11 @@ function setProperty(object, path5, value2) {
   }
   return root;
 }
-function deleteProperty(object, path5) {
-  if (!isObject2(object) || typeof path5 !== "string" && !Array.isArray(path5)) {
+function deleteProperty(object, path6) {
+  if (!isObject2(object) || typeof path6 !== "string" && !Array.isArray(path6)) {
     return false;
   }
-  const pathArray = normalizePath(path5);
+  const pathArray = normalizePath(path6);
   if (pathArray.length === 0) {
     return false;
   }
@@ -28432,11 +28479,11 @@ function deleteProperty(object, path5) {
     }
   }
 }
-function hasProperty(object, path5) {
-  if (!isObject2(object) || typeof path5 !== "string" && !Array.isArray(path5)) {
+function hasProperty(object, path6) {
+  if (!isObject2(object) || typeof path6 !== "string" && !Array.isArray(path6)) {
     return false;
   }
-  const pathArray = normalizePath(path5);
+  const pathArray = normalizePath(path6);
   if (pathArray.length === 0) {
     return false;
   }
@@ -28518,8 +28565,8 @@ var import_node_util = require("util");
 // node_modules/stubborn-utils/dist/attemptify_async.js
 var attemptifyAsync = (fn, options) => {
   const { onError } = options;
-  return function attemptified(...args) {
-    return fn.apply(void 0, args).catch(onError);
+  return function attemptified(...args2) {
+    return fn.apply(void 0, args2).catch(onError);
   };
 };
 var attemptify_async_default = attemptifyAsync;
@@ -28527,9 +28574,9 @@ var attemptify_async_default = attemptifyAsync;
 // node_modules/stubborn-utils/dist/attemptify_sync.js
 var attemptifySync = (fn, options) => {
   const { onError } = options;
-  return function attemptified(...args) {
+  return function attemptified(...args2) {
     try {
-      return fn.apply(void 0, args);
+      return fn.apply(void 0, args2);
     } catch (error4) {
       return onError(error4);
     }
@@ -28547,8 +28594,8 @@ var retryifyAsync = (fn, options) => {
     const { timeout } = options2;
     const interval = options2.interval ?? RETRY_INTERVAL;
     const timestamp2 = Date.now() + timeout;
-    return function attempt(...args) {
-      return fn.apply(void 0, args).catch((error4) => {
+    return function attempt(...args2) {
+      return fn.apply(void 0, args2).catch((error4) => {
         if (!isRetriable(error4))
           throw error4;
         if (Date.now() >= timestamp2)
@@ -28556,9 +28603,9 @@ var retryifyAsync = (fn, options) => {
         const delay = Math.round(interval * Math.random());
         if (delay > 0) {
           const delayPromise = new Promise((resolve) => setTimeout(resolve, delay));
-          return delayPromise.then(() => attempt.apply(void 0, args));
+          return delayPromise.then(() => attempt.apply(void 0, args2));
         } else {
-          return attempt.apply(void 0, args);
+          return attempt.apply(void 0, args2);
         }
       });
     };
@@ -28572,10 +28619,10 @@ var retryifySync = (fn, options) => {
   return function retryified(options2) {
     const { timeout } = options2;
     const timestamp2 = Date.now() + timeout;
-    return function attempt(...args) {
+    return function attempt(...args2) {
       while (true) {
         try {
-          return fn.apply(void 0, args);
+          return fn.apply(void 0, args2);
         } catch (error4) {
           if (!isRetriable(error4))
             throw error4;
@@ -30659,7 +30706,8 @@ var MONITOR_TYPES = [
   "mysql",
   "mongodb",
   "radius",
-  "redis"
+  "redis",
+  "group"
 ];
 function monitorsCommand(program3) {
   const monitors = program3.command("monitors").description("Create, view, update, pause, resume, and delete monitors").addHelpText(
@@ -30877,7 +30925,7 @@ ${list.length} monitor(s) total`);
       }
     }
   );
-  monitors.command("add").description("Add a new monitor \u2014 runs interactively if flags are omitted").option("--name <name>", "Display name for the monitor").option("--type <type>", "Monitor type: http, tcp, ping, dns, push, steam, ...").option("--url <url>", "URL (http), hostname:port (tcp), or hostname (ping/dns)").option("--interval <seconds>", "How often to check, in seconds (default: 60)", "60").option("--json", "Output as JSON ({ ok, data })").option("--instance <name>", "Target a specific instance").addHelpText(
+  monitors.command("add").description("Add a new monitor \u2014 runs interactively if flags are omitted").option("--name <name>", "Display name for the monitor").option("--type <type>", "Monitor type: http, tcp, ping, dns, push, steam, ...").option("--url <url>", "URL (http), hostname:port (tcp), or hostname (ping/dns)").option("--interval <seconds>", "How often to check, in seconds (default: 60)", "60").option("--json", "Output as JSON ({ ok, data })").option("--instance <name>", "Target a specific instance").option("--parent <id>", "Add as a child monitor under an existing group monitor (ID)").addHelpText(
     "after",
     `
 ${source_default.dim("Examples:")}
@@ -30899,21 +30947,30 @@ ${source_default.dim("Examples:")}
               message: "Monitor type:",
               choices: MONITOR_TYPES
             }
-          ] : [],
-          ...!opts.url ? [
+          ] : []
+        ]);
+        const name = opts.name ?? answers.name;
+        const type2 = opts.type ?? answers.type;
+        let url2 = opts.url;
+        if (!url2 && type2 !== "group") {
+          const urlAnswer = await prompt2([
             {
               type: "input",
               name: "url",
               message: "URL or hostname:"
             }
-          ] : []
-        ]);
-        const name = opts.name ?? answers.name;
-        const type2 = opts.type ?? answers.type;
-        const url2 = opts.url ?? answers.url;
+          ]);
+          url2 = urlAnswer.url;
+        }
         const interval = parseInt(opts.interval ?? "60", 10);
         const { client } = await resolveClient(opts);
-        const result = await client.addMonitor({ name, type: type2, url: url2, interval });
+        const result = await client.addMonitor({
+          name,
+          type: type2,
+          url: url2,
+          interval,
+          parent: opts.parent ? parseInt(opts.parent, 10) : void 0
+        });
         client.disconnect();
         if (json2) {
           jsonOut({ id: result.id, name, type: type2, url: url2, interval });
@@ -30924,7 +30981,7 @@ ${source_default.dim("Examples:")}
       }
     }
   );
-  monitors.command("create").description("Create a monitor non-interactively \u2014 designed for CI/CD pipelines").requiredOption("--name <name>", "Monitor display name").requiredOption("--type <type>", "Monitor type: http, tcp, ping, dns, push, ...").option("--url <url>", "URL or hostname to monitor").option("--interval <seconds>", "Check interval in seconds (default: 60)", "60").option("--tag <tag>", "Assign a tag by name (repeatable \u2014 must already exist in Kuma)", collect, []).option("--notification-id <id>", "Assign a notification channel by ID (repeatable)", collectInt, []).option("--json", "Output as JSON ({ ok, data }) \u2014 prints monitor ID and pushToken to stdout").option("--instance <name>", "Target a specific instance").addHelpText(
+  monitors.command("create").description("Create a monitor non-interactively \u2014 designed for CI/CD pipelines").requiredOption("--name <name>", "Monitor display name").requiredOption("--type <type>", "Monitor type: http, tcp, ping, dns, push, ...").option("--url <url>", "URL or hostname to monitor").option("--interval <seconds>", "Check interval in seconds (default: 60)", "60").option("--tag <tag>", "Assign a tag by name (repeatable \u2014 must already exist in Kuma)", collect, []).option("--notification-id <id>", "Assign a notification channel by ID (repeatable)", collectInt, []).option("--json", "Output as JSON ({ ok, data }) \u2014 prints monitor ID and pushToken to stdout").option("--instance <name>", "Target a specific instance").option("--parent <id>", "Create as a child monitor under an existing group monitor (ID)").addHelpText(
     "after",
     `
 ${source_default.dim("Examples:")}
@@ -30950,7 +31007,8 @@ ${source_default.dim("Full pipeline (deploy \u2192 monitor \u2192 heartbeat):")}
         name: opts.name,
         type: opts.type,
         url: opts.url,
-        interval
+        interval,
+        parent: opts.parent ? parseInt(opts.parent, 10) : void 0
       });
       const monitorId = result.id;
       let pushToken = result.pushToken ?? null;
@@ -32787,15 +32845,15 @@ function throwWarning(state, message) {
   }
 }
 var directiveHandlers = {
-  YAML: function handleYamlDirective(state, name, args) {
+  YAML: function handleYamlDirective(state, name, args2) {
     var match, major, minor;
     if (state.version !== null) {
       throwError(state, "duplication of %YAML directive");
     }
-    if (args.length !== 1) {
+    if (args2.length !== 1) {
       throwError(state, "YAML directive accepts exactly one argument");
     }
-    match = /^([0-9]+)\.([0-9]+)$/.exec(args[0]);
+    match = /^([0-9]+)\.([0-9]+)$/.exec(args2[0]);
     if (match === null) {
       throwError(state, "ill-formed argument of the YAML directive");
     }
@@ -32804,19 +32862,19 @@ var directiveHandlers = {
     if (major !== 1) {
       throwError(state, "unacceptable YAML version of the document");
     }
-    state.version = args[0];
+    state.version = args2[0];
     state.checkLineBreaks = minor < 2;
     if (minor !== 1 && minor !== 2) {
       throwWarning(state, "unsupported YAML version of the document");
     }
   },
-  TAG: function handleTagDirective(state, name, args) {
+  TAG: function handleTagDirective(state, name, args2) {
     var handle, prefix;
-    if (args.length !== 2) {
+    if (args2.length !== 2) {
       throwError(state, "TAG directive accepts exactly two arguments");
     }
-    handle = args[0];
-    prefix = args[1];
+    handle = args2[0];
+    prefix = args2[1];
     if (!PATTERN_TAG_HANDLE.test(handle)) {
       throwError(state, "ill-formed tag handle (first argument) of the TAG directive");
     }
@@ -35143,6 +35201,41 @@ ${source_default.dim("Sync is idempotent \u2014 safe to run multiple times.")}
   });
 }
 
+// src/commands/dashboard.ts
+var import_path2 = __toESM(require("path"));
+async function launchDashboard(opts) {
+  try {
+    const refreshInterval = Math.max(5, parseInt(opts.refresh, 10) || 30);
+    const tuiPath = import_path2.default.join(__dirname, "tui-app.mjs");
+    const { renderDashboard } = await import(
+      /* webpackIgnore: true */
+      tuiPath
+    );
+    let client = null;
+    let instanceName = "";
+    try {
+      const resolved = await resolveClient({
+        instance: opts.instance,
+        cluster: opts.cluster
+      });
+      client = resolved.client;
+      instanceName = resolved.instanceName;
+      client.enableReconnection();
+    } catch {
+    }
+    await renderDashboard({
+      client,
+      instanceName: instanceName || void 0,
+      clusterName: opts.cluster ?? null,
+      refreshInterval
+    });
+    client?.disconnect();
+    process.exit(0);
+  } catch (err) {
+    handleError(err);
+  }
+}
+
 // src/index.ts
 var program2 = new Command();
 program2.name("kuma").description("Manage Uptime Kuma monitors, heartbeats, and status pages from your terminal.").version("0.1.0").addHelpText(
@@ -35263,7 +35356,17 @@ configCommand(program2);
 instancesCommand(program2);
 useCommand(program2);
 clusterCommand(program2);
-program2.parse(process.argv);
+var args = process.argv.slice(2);
+var hasSubcommand = args.length > 0 && !args[0].startsWith("-");
+if (!hasSubcommand && !args.includes("-h") && !args.includes("--help") && !args.includes("-V") && !args.includes("--version")) {
+  launchDashboard({
+    instance: void 0,
+    cluster: void 0,
+    refresh: "30"
+  });
+} else {
+  program2.parse(process.argv);
+}
 /*! Bundled license information:
 
 xmlhttprequest-ssl/lib/XMLHttpRequest.js:
