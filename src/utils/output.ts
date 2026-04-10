@@ -88,6 +88,38 @@ export function isJsonMode(opts?: { json?: boolean }): boolean {
 }
 
 /**
+ * Reads JSON input from either a provided string (from --input-json) 
+ * or from stdin if it's piped.
+ */
+export async function getJsonInput(inputJson?: string): Promise<any> {
+  if (inputJson) {
+    try {
+      return JSON.parse(inputJson);
+    } catch (e) {
+      throw new Error("Invalid JSON provided to --input-json");
+    }
+  }
+
+  // Only read from stdin if it's not a TTY (i.e. piped)
+  if (!process.stdin.isTTY) {
+    const buffers = [];
+    for await (const chunk of process.stdin) {
+      buffers.push(chunk);
+    }
+    const content = Buffer.concat(buffers).toString("utf8").trim();
+    if (content) {
+      try {
+        return JSON.parse(content);
+      } catch (e) {
+        throw new Error("Invalid JSON provided via stdin");
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
  * Emit a successful JSON response to stdout and exit 0.
  * Shape: `{ "ok": true, "data": <payload> }`
  */

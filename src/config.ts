@@ -37,6 +37,9 @@ export function getConfigDir(): string {
 }
 
 function getConfigFilePath(): string {
+  if (process.env.KUMA_CONFIG_PATH) {
+    return process.env.KUMA_CONFIG_PATH;
+  }
   return path.join(getConfigDir(), "config.json");
 }
 
@@ -274,7 +277,20 @@ export function clearActiveContext(): void {
 // --- Public API: Backward-compatible helpers ---
 
 export function getConfig(): { url: string; token: string } | null {
+  // Env var overrides (highest priority)
+  if (process.env.KUMA_URL && process.env.KUMA_TOKEN) {
+    return { url: process.env.KUMA_URL, token: process.env.KUMA_TOKEN };
+  }
+
   const config = loadConfig();
+
+  // KUMA_INSTANCE override
+  if (process.env.KUMA_INSTANCE) {
+    const inst = config.instances[process.env.KUMA_INSTANCE];
+    if (inst && inst.token) return inst;
+    return null;
+  }
+
   const active = config.active;
 
   if (active) {

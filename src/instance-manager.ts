@@ -24,6 +24,13 @@ export function resolveInstanceName(flags: CommandFlags): string {
     return flags.instance;
   }
 
+  // KUMA_INSTANCE override
+  if (process.env.KUMA_INSTANCE) {
+    const inst = getInstanceConfig(process.env.KUMA_INSTANCE);
+    if (!inst) throw new Error(`Instance '${process.env.KUMA_INSTANCE}' (from KUMA_INSTANCE) not found.`);
+    return process.env.KUMA_INSTANCE;
+  }
+
   if (flags.cluster) {
     const cluster = getClusterConfig(flags.cluster);
     if (!cluster) throw new Error(`Cluster '${flags.cluster}' not found. Run: kuma cluster list`);
@@ -51,6 +58,12 @@ export function resolveInstanceName(flags: CommandFlags): string {
 }
 
 export async function resolveClient(flags: CommandFlags): Promise<{ client: KumaClient; instanceName: string }> {
+  // If no specific instance/cluster is targeted, check for global KUMA_URL/KUMA_TOKEN overrides
+  if (!flags.instance && !flags.cluster && !process.env.KUMA_INSTANCE && process.env.KUMA_URL && process.env.KUMA_TOKEN) {
+    const client = await createAuthenticatedClient(process.env.KUMA_URL, process.env.KUMA_TOKEN);
+    return { client, instanceName: "env-override" };
+  }
+
   const name = resolveInstanceName(flags);
   const config = getInstanceConfig(name);
   if (!config) throw new Error(`Instance '${name}' not found.`);

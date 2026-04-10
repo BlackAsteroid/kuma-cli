@@ -14,6 +14,7 @@ import {
   isJsonMode,
   jsonOut,
   jsonError,
+  getJsonInput,
 } from "../utils/output.js";
 import { handleError } from "../utils/errors.js";
 import chalk from "chalk";
@@ -354,6 +355,7 @@ ${chalk.dim("Examples:")}
     .option("--type <type>", "Monitor type: http, tcp, ping, dns, push, steam, ...")
     .option("--url <url>", "URL (http), hostname:port (tcp), or hostname (ping/dns)")
     .option("--interval <seconds>", "How often to check, in seconds (default: 60)", "60")
+    .option("--input-json <json>", "Input monitor data as JSON string (overrides other flags)")
     .option("--json", "Output as JSON ({ ok, data })")
     .option("--instance <name>", "Target a specific instance")
     .option("--parent <id>", "Add as a child monitor under an existing group monitor (ID)")
@@ -376,40 +378,63 @@ ${chalk.dim("Examples:")}
         json?: boolean;
         instance?: string;
         parent?: string;
+        inputJson?: string;
       }) => {
         const json = isJsonMode(opts);
+        const inputData = await getJsonInput(opts.inputJson);
 
         try {
-          const answers = await prompt([
-            ...(!opts.name
-              ? [{ type: "input", name: "name", message: "Monitor name:" }]
-              : []),
-            ...(!opts.type
-              ? [
-                  {
-                    type: "select",
-                    name: "type",
-                    message: "Monitor type:",
-                    choices: MONITOR_TYPES,
-                  },
-                ]
-              : []),
-          ]);
-
-          const name = opts.name ?? answers.name;
-          const type = opts.type ?? answers.type;
+          let name = opts.name;
+          let type = opts.type;
           let url = opts.url;
-          if (!url && type !== "group") {
-            const urlAnswer = await prompt([
-              {
-                type: "input",
-                name: "url",
-                message: "URL or hostname:",
-              },
-            ]);
-            url = urlAnswer.url;
+          let interval = parseInt(opts.interval ?? "60", 10);
+          let parent = opts.parent ? parseInt(opts.parent, 10) : undefined;
+
+          if (inputData) {
+            name = inputData.name ?? name;
+            type = inputData.type ?? type;
+            url = inputData.url ?? url;
+            if (inputData.interval) interval = parseInt(inputData.interval, 10);
+            if (inputData.parent) parent = parseInt(inputData.parent, 10);
           }
-          const interval = parseInt(opts.interval ?? "60", 10);
+
+          const nonInteractive = json || !!inputData;
+
+          if (!nonInteractive) {
+            const answers = await prompt([
+              ...(!name
+                ? [{ type: "input", name: "name", message: "Monitor name:" }]
+                : []),
+              ...(!type
+                ? [
+                    {
+                      type: "select",
+                      name: "type",
+                      message: "Monitor type:",
+                      choices: MONITOR_TYPES,
+                    },
+                  ]
+                : []),
+            ]);
+
+            name = name ?? answers.name;
+            type = type ?? answers.type;
+
+            if (!url && type !== "group") {
+              const urlAnswer = await prompt([
+                {
+                  type: "input",
+                  name: "url",
+                  message: "URL or hostname:",
+                },
+              ]);
+              url = urlAnswer.url;
+            }
+          }
+
+          if (!name || !type) {
+            throw new Error("Monitor name and type are required.");
+          }
 
           const { client } = await resolveClient(opts);
           const result = await client.addMonitor({ 
@@ -417,7 +442,7 @@ ${chalk.dim("Examples:")}
             type, 
             url, 
             interval, 
-            parent: opts.parent ? parseInt(opts.parent, 10) : undefined 
+            parent
           });
           client.disconnect();
 
@@ -436,12 +461,13 @@ ${chalk.dim("Examples:")}
   monitors
     .command("create")
     .description("Create a monitor non-interactively — designed for CI/CD pipelines")
-    .requiredOption("--name <name>", "Monitor display name")
-    .requiredOption("--type <type>", "Monitor type: http, tcp, ping, dns, push, ...")
+    .option("--name <name>", "Monitor display name")
+    .option("--type <type>", "Monitor type: http, tcp, ping, dns, push, ...")
     .option("--url <url>", "URL or hostname to monitor")
     .option("--interval <seconds>", "Check interval in seconds (default: 60)", "60")
     .option("--tag <tag>", "Assign a tag by name (repeatable — must already exist in Kuma)", collect, [])
     .option("--notification-id <id>", "Assign a notification channel by ID (repeatable)", collectInt, [])
+    .option("--input-json <json>", "Input monitor data as JSON string (overrides other flags)")
     .option("--json", "Output as JSON ({ ok, data }) — prints monitor ID and pushToken to stdout")
     .option("--instance <name>", "Target a specific instance")
     .option("--parent <id>", "Create as a child monitor under an existing group monitor (ID)")
@@ -470,13 +496,36 @@ ${chalk.dim("Full pipeline (deploy → monitor → heartbeat):")}
       json?: boolean;
       instance?: string;
       parent?: string;
+      inputJson?: string;
     }) => {
       const json = isJsonMode(opts);
-      const interval = parseInt(opts.interval ?? "60", 10);
+      const inputData = await getJsonInput(opts.inputJson);
+
+      let name = opts.name;
+      let type = opts.type;
+      let url = opts.url;
+      let interval = parseInt(opts.interval ?? "60", 10);
+      let tags = opts.tag;
+      let notificationIds = opts.notificationId;
+      let parent = opts.parent ? parseInt(opts.parent, 10) : undefined;
+
+      if (inputData) {
+        name = inputData.name ?? name;
+        type = inputData.type ?? type;
+        url = inputData.url ?? url;
+        if (inputData.interval) interval = parseInt(inputData.interval, 10);
+        if (inputData.tags) tags = Array.isArray(inputData.tags) ? inputData.tags : [inputData.tags];
+        if (inputData.notificationIds) notificationIds = Array.isArray(inputData.notificationIds) ? inputData.notificationIds : [inputData.notificationIds];
+        if (inputData.parent) parent = parseInt(inputData.parent, 10);
+      }
 
       // Validate required fields per type
-      if (["http", "keyword", "tcp", "ping", "dns"].includes(opts.type) && !opts.url) {
-        handleError(new Error(`--url is required for monitor type "${opts.type}"`), opts);
+      if (!name || !type) {
+        handleError(new Error("Monitor name and type are required."), opts);
+      }
+
+      if (["http", "keyword", "tcp", "ping", "dns"].includes(type) && !url) {
+        handleError(new Error(`url is required for monitor type "${type}"`), opts);
       }
 
       try {
@@ -484,11 +533,11 @@ ${chalk.dim("Full pipeline (deploy → monitor → heartbeat):")}
 
         // Create the monitor
         const result = await client.addMonitor({
-          name: opts.name,
-          type: opts.type,
-          url: opts.url,
+          name,
+          type,
+          url,
           interval,
-          parent: opts.parent ? parseInt(opts.parent, 10) : undefined,
+          parent,
         });
         const monitorId = result.id;
         // pushToken is returned directly from addMonitor for push monitors
@@ -499,11 +548,11 @@ ${chalk.dim("Full pipeline (deploy → monitor → heartbeat):")}
         const tagWarnings: string[] = [];
 
         // Assign tags if specified
-        if (opts.tag.length > 0) {
+        if (tags.length > 0) {
           const allTags = await client.getTags();
           const tagMap = new Map(allTags.map((t) => [t.name.toLowerCase(), t]));
 
-          for (const tagName of opts.tag) {
+          for (const tagName of tags) {
             const found = tagMap.get(tagName.toLowerCase());
             if (!found) {
               const warn = `Tag "${tagName}" not found — skipping. Create it in the Kuma UI first.`;
@@ -518,9 +567,9 @@ ${chalk.dim("Full pipeline (deploy → monitor → heartbeat):")}
         }
 
         // Assign notifications if specified
-        if (opts.notificationId.length > 0) {
+        if (notificationIds.length > 0) {
           const monitorMap = await client.getMonitorList();
-          for (const notifId of opts.notificationId) {
+          for (const notifId of notificationIds) {
             await client.setMonitorNotification(monitorId, notifId, true, monitorMap);
           }
         }
@@ -530,9 +579,9 @@ ${chalk.dim("Full pipeline (deploy → monitor → heartbeat):")}
         if (json) {
           const data: Record<string, unknown> = {
             id: monitorId,
-            name: opts.name,
-            type: opts.type,
-            url: opts.url ?? null,
+            name,
+            type,
+            url: url ?? null,
             interval,
           };
           if (pushToken) data.pushToken = pushToken;
@@ -541,14 +590,14 @@ ${chalk.dim("Full pipeline (deploy → monitor → heartbeat):")}
           jsonOut(data, tagWarnings.length > 0 ? 1 : 0);
         }
 
-        success(`Monitor "${opts.name}" created (ID: ${monitorId})`);
+        success(`Monitor "${name}" created (ID: ${monitorId})`);
         if (pushToken) {
           const instanceUrl = getInstanceConfig(instanceName)?.url ?? "";
           console.log(`   Push token: ${chalk.cyan(pushToken)}`);
           console.log(`   Push URL:   ${chalk.dim(`${instanceUrl}/api/push/${pushToken}`)}`);
         }
-        if (opts.tag.length > 0) {
-          const applied = opts.tag.filter((t) => !tagWarnings.some((w) => w.includes(t)));
+        if (tags.length > 0) {
+          const applied = tags.filter((t) => !tagWarnings.some((w) => w.includes(t)));
           if (applied.length > 0) console.log(`   Tags: ${applied.join(", ")}`);
         }
         // BUG-02: exit 1 if any tags were not found — makes pipeline failures visible

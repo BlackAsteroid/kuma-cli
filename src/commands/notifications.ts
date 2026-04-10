@@ -3,7 +3,7 @@ import chalk from "chalk";
 import * as fs from "fs";
 import { NotificationPayload } from "../client.js";
 import { resolveClient } from "../instance-manager.js";
-import { createTable, isJsonMode, jsonOut, success, error } from "../utils/output.js";
+import { createTable, isJsonMode, jsonOut, success, error, getJsonInput } from "../utils/output.js";
 import { handleError } from "../utils/errors.js";
 
 /**
@@ -130,8 +130,8 @@ ${chalk.dim("Examples:")}
   notifications
     .command("create")
     .description("Create a new notification channel")
-    .requiredOption("--type <type>", "Notification type: discord, telegram, slack, webhook, ...")
-    .requiredOption("--name <name>", "Friendly name for this notification channel")
+    .option("--type <type>", "Notification type: discord, telegram, slack, webhook, ...")
+    .option("--name <name>", "Friendly name for this notification channel")
     // Discord
     .option("--discord-webhook <url|$VAR>", "Discord webhook URL — pass value or env var name like '$DISCORD_WEBHOOK'")
     .option("--discord-username <name>", "Discord bot display name (optional)")
@@ -146,6 +146,7 @@ ${chalk.dim("Examples:")}
     // Common flags
     .option("--default", "Enable this notification by default on all new monitors")
     .option("--apply-existing", "Apply this notification to all existing monitors immediately")
+    .option("--input-json <json>", "Input notification data as JSON string (overrides other flags)")
     .option("--json", "Output as JSON ({ ok, data })")
     .option("--instance <name>", "Target a specific instance")
     .addHelpText(
@@ -180,63 +181,101 @@ ${chalk.dim("Supported types:")}
       applyExisting?: boolean;
       json?: boolean;
       instance?: string;
+      inputJson?: string;
     }) => {
       const json = isJsonMode(opts);
+      const inputData = await getJsonInput(opts.inputJson);
+
+      let name = opts.name;
+      let type = opts.type;
+      let isDefault = opts.default ?? false;
+      let applyExisting = opts.applyExisting ?? false;
+
+      // Extract provider-specific fields from opts first
+      let discordWebhook = resolveSecret(opts.discordWebhook);
+      let discordUsername = opts.discordUsername;
+      let telegramToken = resolveSecret(opts.telegramToken);
+      let telegramChatId = opts.telegramChatId;
+      let slackWebhook = resolveSecret(opts.slackWebhook);
+      let webhookUrl = resolveSecret(opts.webhookUrl);
+      let webhookContentType = opts.webhookContentType ?? "application/json";
+
+      if (inputData) {
+        name = inputData.name ?? name;
+        type = inputData.type ?? type;
+        if (inputData.default !== undefined) isDefault = !!inputData.default;
+        if (inputData.applyExisting !== undefined) applyExisting = !!inputData.applyExisting;
+        
+        // Map common JSON keys to payload fields
+        discordWebhook = inputData.discordWebhook ?? inputData.discordWebhookUrl ?? discordWebhook;
+        discordUsername = inputData.discordUsername ?? discordUsername;
+        telegramToken = inputData.telegramToken ?? inputData.telegramBotToken ?? telegramToken;
+        telegramChatId = inputData.telegramChatId ?? inputData.telegramChatID ?? telegramChatId;
+        slackWebhook = inputData.slackWebhook ?? inputData.slackwebhookURL ?? slackWebhook;
+        webhookUrl = inputData.webhookUrl ?? inputData.webhookURL ?? webhookUrl;
+        webhookContentType = inputData.webhookContentType ?? webhookContentType;
+      }
+
+      if (!name || !type) {
+        handleError(new Error("Notification name and type are required."), opts);
+      }
 
       // Build the notification payload
-      const payload: NotificationPayload = {
-        name: opts.name,
-        type: opts.type,
-        isDefault: opts.default ?? false,
+      const payload: any = {
+        name,
+        type,
+        isDefault,
         active: true,
-        applyExisting: opts.applyExisting ?? false,
+        applyExisting,
       };
 
-      // Attach provider-specific fields
-      // Fix #1: resolve env var references for all secret/credential flags
-      const discordWebhook = resolveSecret(opts.discordWebhook);
-      const telegramToken = resolveSecret(opts.telegramToken);
-      const slackWebhook = resolveSecret(opts.slackWebhook);
-      const webhookUrl = resolveSecret(opts.webhookUrl);
-
-      switch (opts.type.toLowerCase()) {
+      switch (type.toLowerCase()) {
         case "discord":
           if (!discordWebhook) {
-            handleError(new Error("--discord-webhook is required for --type discord (pass value or '$ENV_VAR_NAME')"), opts);
+            handleError(new Error("discordWebhook is required for type discord"), opts);
           }
           payload.discordWebhookUrl = discordWebhook;
-          if (opts.discordUsername) payload.discordUsername = opts.discordUsername;
+          if (discordUsername) payload.discordUsername = discordUsername;
           break;
 
         case "telegram":
-          if (!telegramToken || !opts.telegramChatId) {
-            handleError(new Error("--telegram-token and --telegram-chat-id are required for --type telegram"), opts);
+          if (!telegramToken || !telegramChatId) {
+            handleError(new Error("telegramToken and telegramChatId are required for type telegram"), opts);
           }
           payload.telegramBotToken = telegramToken;
-          payload.telegramChatID = opts.telegramChatId;
+          payload.telegramChatID = telegramChatId;
           break;
 
         case "slack":
           if (!slackWebhook) {
-            handleError(new Error("--slack-webhook is required for --type slack (pass value or '$ENV_VAR_NAME')"), opts);
+            handleError(new Error("slackWebhook is required for type slack"), opts);
           }
           payload.slackwebhookURL = slackWebhook;
           break;
 
         case "webhook":
           if (!webhookUrl) {
-            handleError(new Error("--webhook-url is required for --type webhook (pass value or '$ENV_VAR_NAME')"), opts);
+            handleError(new Error("webhookUrl is required for type webhook"), opts);
           }
           payload.webhookURL = webhookUrl;
-          payload.webhookContentType = opts.webhookContentType ?? "application/json";
+          payload.webhookContentType = webhookContentType;
           break;
 
         default:
-          // For other types (ntfy, gotify, etc.), the user can pass any field
-          // via env vars or future --extra flags. We ship the payload as-is.
+          // For other types, merge additional fields from inputData if present
+          if (inputData) {
+            Object.assign(payload, inputData);
+            // Ensure core fields are preserved
+            payload.name = name;
+            payload.type = type;
+            payload.isDefault = isDefault;
+            payload.active = true;
+            payload.applyExisting = applyExisting;
+          }
+
           if (!json) {
             console.log(chalk.yellow(
-              `⚠️  Type "${opts.type}" may require additional fields not exposed as flags.\n` +
+              `⚠️  Type "${type}" may require additional fields not exposed as flags.\n` +
               `   The notification will be created but may need manual config in the UI.`
             ));
           }
@@ -248,10 +287,10 @@ ${chalk.dim("Supported types:")}
         client.disconnect();
 
         if (json) {
-          jsonOut({ id, name: opts.name, type: opts.type });
+          jsonOut({ id, name, type });
         }
 
-        success(`Notification "${opts.name}" created (ID: ${id})`);
+        success(`Notification "${name}" created (ID: ${id})`);
       } catch (err) {
         handleError(err, opts);
       }
