@@ -563,6 +563,9 @@ function getConfigDir() {
   return path.join(configHome, "kuma-cli");
 }
 function getConfigFilePath() {
+  if (process.env.KUMA_CONFIG_PATH) {
+    return process.env.KUMA_CONFIG_PATH;
+  }
   return path.join(getConfigDir(), "config.json");
 }
 function getOldConfigFilePath() {
@@ -727,7 +730,15 @@ function setActiveContext(ctx) {
   saveFullConfig(config);
 }
 function getConfig() {
+  if (process.env.KUMA_URL && process.env.KUMA_TOKEN) {
+    return { url: process.env.KUMA_URL, token: process.env.KUMA_TOKEN };
+  }
   const config = loadConfig();
+  if (process.env.KUMA_INSTANCE) {
+    const inst = config.instances[process.env.KUMA_INSTANCE];
+    if (inst && inst.token) return inst;
+    return null;
+  }
   const active = config.active;
   if (active) {
     if (active.type === "instance") {
@@ -838,6 +849,30 @@ function isJsonMode(opts) {
   const env = process.env["KUMA_JSON"];
   return env === "1" || env === "true" || env === "yes";
 }
+async function getJsonInput(inputJson) {
+  if (inputJson) {
+    try {
+      return JSON.parse(inputJson);
+    } catch (e) {
+      throw new Error("Invalid JSON provided to --input-json");
+    }
+  }
+  if (!process.stdin.isTTY) {
+    const buffers = [];
+    for await (const chunk of process.stdin) {
+      buffers.push(chunk);
+    }
+    const content = Buffer.concat(buffers).toString("utf8").trim();
+    if (content) {
+      try {
+        return JSON.parse(content);
+      } catch (e) {
+        throw new Error("Invalid JSON provided via stdin");
+      }
+    }
+  }
+  return null;
+}
 function jsonOut(data, exitCode = 0) {
   console.log(JSON.stringify({ ok: true, data }, null, 2));
   process.exit(exitCode);
@@ -850,30 +885,48 @@ function jsonError(message, code = 1) {
 // src/utils/errors.ts
 var EXIT_CODES = {
   SUCCESS: 0,
-  GENERAL: 1,
-  CONNECTION: 2,
-  NOT_FOUND: 3,
-  AUTH: 4
+  API_ERROR: 1,
+  AUTH_REQUIRED: 2,
+  AUTH_EXPIRED: 2,
+  CONNECT_FAILED: 3,
+  TIMEOUT: 3,
+  VALIDATION: 4,
+  NOT_FOUND: 5
 };
-function exitCodeFor(err) {
-  if (!(err instanceof Error)) return EXIT_CODES.GENERAL;
+function errorDetailsFor(err) {
+  if (!(err instanceof Error)) return { code: EXIT_CODES.API_ERROR, stringCode: "API_ERROR" };
   const msg = err.message.toLowerCase();
-  if (msg.includes("connection") || msg.includes("timeout") || msg.includes("refused")) {
-    return EXIT_CODES.CONNECTION;
+  if (msg.includes("timeout")) {
+    return { code: EXIT_CODES.TIMEOUT, stringCode: "TIMEOUT" };
   }
-  if (msg.includes("not found") || msg.includes("not exist")) {
-    return EXIT_CODES.NOT_FOUND;
+  if (msg.includes("connection") || msg.includes("refused") || msg.includes("econnrefused")) {
+    return { code: EXIT_CODES.CONNECT_FAILED, stringCode: "CONNECT_FAILED" };
   }
-  if (msg.includes("auth") || msg.includes("session expired") || msg.includes("login")) {
-    return EXIT_CODES.AUTH;
+  if (msg.includes("not found") || msg.includes("not exist") || msg.includes("404")) {
+    return { code: EXIT_CODES.NOT_FOUND, stringCode: "NOT_FOUND" };
   }
-  return EXIT_CODES.GENERAL;
+  if (msg.includes("validation") || msg.includes("invalid") || msg.includes("required")) {
+    return { code: EXIT_CODES.VALIDATION, stringCode: "VALIDATION" };
+  }
+  if (msg.includes("expired")) {
+    return { code: EXIT_CODES.AUTH_EXPIRED, stringCode: "AUTH_EXPIRED" };
+  }
+  if (msg.includes("auth") || msg.includes("login") || msg.includes("session")) {
+    return { code: EXIT_CODES.AUTH_REQUIRED, stringCode: "AUTH_REQUIRED" };
+  }
+  return { code: EXIT_CODES.API_ERROR, stringCode: "API_ERROR" };
 }
 function handleError(err, opts) {
   const message = err instanceof Error ? err.message : String(err);
-  const code = exitCodeFor(err);
+  const { code, stringCode } = errorDetailsFor(err);
   if (isJsonMode(opts)) {
-    jsonError(message, code);
+    console.log(JSON.stringify({
+      ok: false,
+      error: message,
+      code: stringCode,
+      exitCode: code
+    }, null, 2));
+    process.exit(code);
   }
   error(message);
   process.exit(code);
@@ -1017,6 +1070,11 @@ function resolveInstanceName(flags) {
     if (!inst) throw new Error(`Instance '${flags.instance}' not found. Run: kuma instances list`);
     return flags.instance;
   }
+  if (process.env.KUMA_INSTANCE) {
+    const inst = getInstanceConfig(process.env.KUMA_INSTANCE);
+    if (!inst) throw new Error(`Instance '${process.env.KUMA_INSTANCE}' (from KUMA_INSTANCE) not found.`);
+    return process.env.KUMA_INSTANCE;
+  }
   if (flags.cluster) {
     const cluster = getClusterConfig(flags.cluster);
     if (!cluster) throw new Error(`Cluster '${flags.cluster}' not found. Run: kuma cluster list`);
@@ -1040,6 +1098,10 @@ function resolveInstanceName(flags) {
   throw new Error(`No active instance. Multiple instances found: ${names.join(", ")}. Run: kuma use <name>`);
 }
 async function resolveClient(flags) {
+  if (!flags.instance && !flags.cluster && !process.env.KUMA_INSTANCE && process.env.KUMA_URL && process.env.KUMA_TOKEN) {
+    const client2 = await createAuthenticatedClient(process.env.KUMA_URL, process.env.KUMA_TOKEN);
+    return { client: client2, instanceName: "env-override" };
+  }
   const name = resolveInstanceName(flags);
   const config = getInstanceConfig(name);
   if (!config) throw new Error(`Instance '${name}' not found.`);
@@ -1288,7 +1350,7 @@ ${list.length} monitor(s) total`);
       }
     }
   );
-  monitors.command("add").description("Add a new monitor \u2014 runs interactively if flags are omitted").option("--name <name>", "Display name for the monitor").option("--type <type>", "Monitor type: http, tcp, ping, dns, push, steam, ...").option("--url <url>", "URL (http), hostname:port (tcp), or hostname (ping/dns)").option("--interval <seconds>", "How often to check, in seconds (default: 60)", "60").option("--json", "Output as JSON ({ ok, data })").option("--instance <name>", "Target a specific instance").option("--parent <id>", "Add as a child monitor under an existing group monitor (ID)").addHelpText(
+  monitors.command("add").description("Add a new monitor \u2014 runs interactively if flags are omitted").option("--name <name>", "Display name for the monitor").option("--type <type>", "Monitor type: http, tcp, ping, dns, push, steam, ...").option("--url <url>", "URL (http), hostname:port (tcp), or hostname (ping/dns)").option("--interval <seconds>", "How often to check, in seconds (default: 60)", "60").option("--input-json <json>", "Input monitor data as JSON string (overrides other flags)").option("--json", "Output as JSON ({ ok, data })").option("--instance <name>", "Target a specific instance").option("--parent <id>", "Add as a child monitor under an existing group monitor (ID)").addHelpText(
     "after",
     `
 ${chalk4.dim("Examples:")}
@@ -1300,39 +1362,56 @@ ${chalk4.dim("Examples:")}
   ).action(
     async (opts) => {
       const json = isJsonMode(opts);
+      const inputData = await getJsonInput(opts.inputJson);
       try {
-        const answers = await prompt2([
-          ...!opts.name ? [{ type: "input", name: "name", message: "Monitor name:" }] : [],
-          ...!opts.type ? [
-            {
-              type: "select",
-              name: "type",
-              message: "Monitor type:",
-              choices: MONITOR_TYPES
-            }
-          ] : []
-        ]);
-        const name = opts.name ?? answers.name;
-        const type = opts.type ?? answers.type;
+        let name = opts.name;
+        let type = opts.type;
         let url = opts.url;
-        if (!url && type !== "group") {
-          const urlAnswer = await prompt2([
-            {
-              type: "input",
-              name: "url",
-              message: "URL or hostname:"
-            }
-          ]);
-          url = urlAnswer.url;
+        let interval = parseInt(opts.interval ?? "60", 10);
+        let parent = opts.parent ? parseInt(opts.parent, 10) : void 0;
+        if (inputData) {
+          name = inputData.name ?? name;
+          type = inputData.type ?? type;
+          url = inputData.url ?? url;
+          if (inputData.interval) interval = parseInt(inputData.interval, 10);
+          if (inputData.parent) parent = parseInt(inputData.parent, 10);
         }
-        const interval = parseInt(opts.interval ?? "60", 10);
+        const nonInteractive = json || !!inputData;
+        if (!nonInteractive) {
+          const answers = await prompt2([
+            ...!name ? [{ type: "input", name: "name", message: "Monitor name:" }] : [],
+            ...!type ? [
+              {
+                type: "select",
+                name: "type",
+                message: "Monitor type:",
+                choices: MONITOR_TYPES
+              }
+            ] : []
+          ]);
+          name = name ?? answers.name;
+          type = type ?? answers.type;
+          if (!url && type !== "group") {
+            const urlAnswer = await prompt2([
+              {
+                type: "input",
+                name: "url",
+                message: "URL or hostname:"
+              }
+            ]);
+            url = urlAnswer.url;
+          }
+        }
+        if (!name || !type) {
+          throw new Error("Monitor name and type are required.");
+        }
         const { client } = await resolveClient(opts);
         const result = await client.addMonitor({
           name,
           type,
           url,
           interval,
-          parent: opts.parent ? parseInt(opts.parent, 10) : void 0
+          parent
         });
         client.disconnect();
         if (json) {
@@ -1344,7 +1423,7 @@ ${chalk4.dim("Examples:")}
       }
     }
   );
-  monitors.command("create").description("Create a monitor non-interactively \u2014 designed for CI/CD pipelines").requiredOption("--name <name>", "Monitor display name").requiredOption("--type <type>", "Monitor type: http, tcp, ping, dns, push, ...").option("--url <url>", "URL or hostname to monitor").option("--interval <seconds>", "Check interval in seconds (default: 60)", "60").option("--tag <tag>", "Assign a tag by name (repeatable \u2014 must already exist in Kuma)", collect, []).option("--notification-id <id>", "Assign a notification channel by ID (repeatable)", collectInt, []).option("--json", "Output as JSON ({ ok, data }) \u2014 prints monitor ID and pushToken to stdout").option("--instance <name>", "Target a specific instance").option("--parent <id>", "Create as a child monitor under an existing group monitor (ID)").addHelpText(
+  monitors.command("create").description("Create a monitor non-interactively \u2014 designed for CI/CD pipelines").option("--name <name>", "Monitor display name").option("--type <type>", "Monitor type: http, tcp, ping, dns, push, ...").option("--url <url>", "URL or hostname to monitor").option("--interval <seconds>", "Check interval in seconds (default: 60)", "60").option("--tag <tag>", "Assign a tag by name (repeatable \u2014 must already exist in Kuma)", collect, []).option("--notification-id <id>", "Assign a notification channel by ID (repeatable)", collectInt, []).option("--input-json <json>", "Input monitor data as JSON string (overrides other flags)").option("--json", "Output as JSON ({ ok, data }) \u2014 prints monitor ID and pushToken to stdout").option("--instance <name>", "Target a specific instance").option("--parent <id>", "Create as a child monitor under an existing group monitor (ID)").addHelpText(
     "after",
     `
 ${chalk4.dim("Examples:")}
@@ -1360,26 +1439,45 @@ ${chalk4.dim("Full pipeline (deploy \u2192 monitor \u2192 heartbeat):")}
 `
   ).action(async (opts) => {
     const json = isJsonMode(opts);
-    const interval = parseInt(opts.interval ?? "60", 10);
-    if (["http", "keyword", "tcp", "ping", "dns"].includes(opts.type) && !opts.url) {
-      handleError(new Error(`--url is required for monitor type "${opts.type}"`), opts);
+    const inputData = await getJsonInput(opts.inputJson);
+    let name = opts.name;
+    let type = opts.type;
+    let url = opts.url;
+    let interval = parseInt(opts.interval ?? "60", 10);
+    let tags = opts.tag;
+    let notificationIds = opts.notificationId;
+    let parent = opts.parent ? parseInt(opts.parent, 10) : void 0;
+    if (inputData) {
+      name = inputData.name ?? name;
+      type = inputData.type ?? type;
+      url = inputData.url ?? url;
+      if (inputData.interval) interval = parseInt(inputData.interval, 10);
+      if (inputData.tags) tags = Array.isArray(inputData.tags) ? inputData.tags : [inputData.tags];
+      if (inputData.notificationIds) notificationIds = Array.isArray(inputData.notificationIds) ? inputData.notificationIds : [inputData.notificationIds];
+      if (inputData.parent) parent = parseInt(inputData.parent, 10);
+    }
+    if (!name || !type) {
+      handleError(new Error("Monitor name and type are required."), opts);
+    }
+    if (["http", "keyword", "tcp", "ping", "dns"].includes(type) && !url) {
+      handleError(new Error(`url is required for monitor type "${type}"`), opts);
     }
     try {
       const { client, instanceName } = await resolveClient(opts);
       const result = await client.addMonitor({
-        name: opts.name,
-        type: opts.type,
-        url: opts.url,
+        name,
+        type,
+        url,
         interval,
-        parent: opts.parent ? parseInt(opts.parent, 10) : void 0
+        parent
       });
       const monitorId = result.id;
       let pushToken = result.pushToken ?? null;
       const tagWarnings = [];
-      if (opts.tag.length > 0) {
+      if (tags.length > 0) {
         const allTags = await client.getTags();
         const tagMap = new Map(allTags.map((t) => [t.name.toLowerCase(), t]));
-        for (const tagName of opts.tag) {
+        for (const tagName of tags) {
           const found = tagMap.get(tagName.toLowerCase());
           if (!found) {
             const warn3 = `Tag "${tagName}" not found \u2014 skipping. Create it in the Kuma UI first.`;
@@ -1392,9 +1490,9 @@ ${chalk4.dim("Full pipeline (deploy \u2192 monitor \u2192 heartbeat):")}
           await client.addMonitorTag(found.id, monitorId);
         }
       }
-      if (opts.notificationId.length > 0) {
+      if (notificationIds.length > 0) {
         const monitorMap = await client.getMonitorList();
-        for (const notifId of opts.notificationId) {
+        for (const notifId of notificationIds) {
           await client.setMonitorNotification(monitorId, notifId, true, monitorMap);
         }
       }
@@ -1402,23 +1500,23 @@ ${chalk4.dim("Full pipeline (deploy \u2192 monitor \u2192 heartbeat):")}
       if (json) {
         const data = {
           id: monitorId,
-          name: opts.name,
-          type: opts.type,
-          url: opts.url ?? null,
+          name,
+          type,
+          url: url ?? null,
           interval
         };
         if (pushToken) data.pushToken = pushToken;
         if (tagWarnings.length > 0) data.warnings = tagWarnings;
         jsonOut(data, tagWarnings.length > 0 ? 1 : 0);
       }
-      success(`Monitor "${opts.name}" created (ID: ${monitorId})`);
+      success(`Monitor "${name}" created (ID: ${monitorId})`);
       if (pushToken) {
         const instanceUrl = getInstanceConfig(instanceName)?.url ?? "";
         console.log(`   Push token: ${chalk4.cyan(pushToken)}`);
         console.log(`   Push URL:   ${chalk4.dim(`${instanceUrl}/api/push/${pushToken}`)}`);
       }
-      if (opts.tag.length > 0) {
-        const applied = opts.tag.filter((t) => !tagWarnings.some((w) => w.includes(t)));
+      if (tags.length > 0) {
+        const applied = tags.filter((t) => !tagWarnings.some((w) => w.includes(t)));
         if (applied.length > 0) console.log(`   Tags: ${applied.join(", ")}`);
       }
       if (tagWarnings.length > 0) {
@@ -2177,7 +2275,7 @@ ${list.length} notification channel(s)`);
       handleError(err, opts);
     }
   });
-  notifications.command("create").description("Create a new notification channel").requiredOption("--type <type>", "Notification type: discord, telegram, slack, webhook, ...").requiredOption("--name <name>", "Friendly name for this notification channel").option("--discord-webhook <url|$VAR>", "Discord webhook URL \u2014 pass value or env var name like '$DISCORD_WEBHOOK'").option("--discord-username <name>", "Discord bot display name (optional)").option("--telegram-token <token|$VAR>", "Telegram bot token \u2014 pass value or env var name like '$TELEGRAM_TOKEN'").option("--telegram-chat-id <id>", "Telegram chat ID (required for --type telegram)").option("--slack-webhook <url|$VAR>", "Slack webhook URL \u2014 pass value or env var name like '$SLACK_WEBHOOK'").option("--webhook-url <url|$VAR>", "Webhook URL \u2014 pass value or env var name like '$WEBHOOK_URL'").option("--webhook-content-type <type>", "Webhook content type (default: application/json)", "application/json").option("--default", "Enable this notification by default on all new monitors").option("--apply-existing", "Apply this notification to all existing monitors immediately").option("--json", "Output as JSON ({ ok, data })").option("--instance <name>", "Target a specific instance").addHelpText(
+  notifications.command("create").description("Create a new notification channel").option("--type <type>", "Notification type: discord, telegram, slack, webhook, ...").option("--name <name>", "Friendly name for this notification channel").option("--discord-webhook <url|$VAR>", "Discord webhook URL \u2014 pass value or env var name like '$DISCORD_WEBHOOK'").option("--discord-username <name>", "Discord bot display name (optional)").option("--telegram-token <token|$VAR>", "Telegram bot token \u2014 pass value or env var name like '$TELEGRAM_TOKEN'").option("--telegram-chat-id <id>", "Telegram chat ID (required for --type telegram)").option("--slack-webhook <url|$VAR>", "Slack webhook URL \u2014 pass value or env var name like '$SLACK_WEBHOOK'").option("--webhook-url <url|$VAR>", "Webhook URL \u2014 pass value or env var name like '$WEBHOOK_URL'").option("--webhook-content-type <type>", "Webhook content type (default: application/json)", "application/json").option("--default", "Enable this notification by default on all new monitors").option("--apply-existing", "Apply this notification to all existing monitors immediately").option("--input-json <json>", "Input notification data as JSON string (overrides other flags)").option("--json", "Output as JSON ({ ok, data })").option("--instance <name>", "Target a specific instance").addHelpText(
     "after",
     `
 ${chalk8.dim("Examples:")}
@@ -2196,49 +2294,81 @@ ${chalk8.dim("Supported types:")}
 `
   ).action(async (opts) => {
     const json = isJsonMode(opts);
+    const inputData = await getJsonInput(opts.inputJson);
+    let name = opts.name;
+    let type = opts.type;
+    let isDefault = opts.default ?? false;
+    let applyExisting = opts.applyExisting ?? false;
+    let discordWebhook = resolveSecret(opts.discordWebhook);
+    let discordUsername = opts.discordUsername;
+    let telegramToken = resolveSecret(opts.telegramToken);
+    let telegramChatId = opts.telegramChatId;
+    let slackWebhook = resolveSecret(opts.slackWebhook);
+    let webhookUrl = resolveSecret(opts.webhookUrl);
+    let webhookContentType = opts.webhookContentType ?? "application/json";
+    if (inputData) {
+      name = inputData.name ?? name;
+      type = inputData.type ?? type;
+      if (inputData.default !== void 0) isDefault = !!inputData.default;
+      if (inputData.applyExisting !== void 0) applyExisting = !!inputData.applyExisting;
+      discordWebhook = inputData.discordWebhook ?? inputData.discordWebhookUrl ?? discordWebhook;
+      discordUsername = inputData.discordUsername ?? discordUsername;
+      telegramToken = inputData.telegramToken ?? inputData.telegramBotToken ?? telegramToken;
+      telegramChatId = inputData.telegramChatId ?? inputData.telegramChatID ?? telegramChatId;
+      slackWebhook = inputData.slackWebhook ?? inputData.slackwebhookURL ?? slackWebhook;
+      webhookUrl = inputData.webhookUrl ?? inputData.webhookURL ?? webhookUrl;
+      webhookContentType = inputData.webhookContentType ?? webhookContentType;
+    }
+    if (!name || !type) {
+      handleError(new Error("Notification name and type are required."), opts);
+    }
     const payload = {
-      name: opts.name,
-      type: opts.type,
-      isDefault: opts.default ?? false,
+      name,
+      type,
+      isDefault,
       active: true,
-      applyExisting: opts.applyExisting ?? false
+      applyExisting
     };
-    const discordWebhook = resolveSecret(opts.discordWebhook);
-    const telegramToken = resolveSecret(opts.telegramToken);
-    const slackWebhook = resolveSecret(opts.slackWebhook);
-    const webhookUrl = resolveSecret(opts.webhookUrl);
-    switch (opts.type.toLowerCase()) {
+    switch (type.toLowerCase()) {
       case "discord":
         if (!discordWebhook) {
-          handleError(new Error("--discord-webhook is required for --type discord (pass value or '$ENV_VAR_NAME')"), opts);
+          handleError(new Error("discordWebhook is required for type discord"), opts);
         }
         payload.discordWebhookUrl = discordWebhook;
-        if (opts.discordUsername) payload.discordUsername = opts.discordUsername;
+        if (discordUsername) payload.discordUsername = discordUsername;
         break;
       case "telegram":
-        if (!telegramToken || !opts.telegramChatId) {
-          handleError(new Error("--telegram-token and --telegram-chat-id are required for --type telegram"), opts);
+        if (!telegramToken || !telegramChatId) {
+          handleError(new Error("telegramToken and telegramChatId are required for type telegram"), opts);
         }
         payload.telegramBotToken = telegramToken;
-        payload.telegramChatID = opts.telegramChatId;
+        payload.telegramChatID = telegramChatId;
         break;
       case "slack":
         if (!slackWebhook) {
-          handleError(new Error("--slack-webhook is required for --type slack (pass value or '$ENV_VAR_NAME')"), opts);
+          handleError(new Error("slackWebhook is required for type slack"), opts);
         }
         payload.slackwebhookURL = slackWebhook;
         break;
       case "webhook":
         if (!webhookUrl) {
-          handleError(new Error("--webhook-url is required for --type webhook (pass value or '$ENV_VAR_NAME')"), opts);
+          handleError(new Error("webhookUrl is required for type webhook"), opts);
         }
         payload.webhookURL = webhookUrl;
-        payload.webhookContentType = opts.webhookContentType ?? "application/json";
+        payload.webhookContentType = webhookContentType;
         break;
       default:
+        if (inputData) {
+          Object.assign(payload, inputData);
+          payload.name = name;
+          payload.type = type;
+          payload.isDefault = isDefault;
+          payload.active = true;
+          payload.applyExisting = applyExisting;
+        }
         if (!json) {
           console.log(chalk8.yellow(
-            `\u26A0\uFE0F  Type "${opts.type}" may require additional fields not exposed as flags.
+            `\u26A0\uFE0F  Type "${type}" may require additional fields not exposed as flags.
    The notification will be created but may need manual config in the UI.`
           ));
         }
@@ -2248,9 +2378,9 @@ ${chalk8.dim("Supported types:")}
       const id = await client.addNotification(payload);
       client.disconnect();
       if (json) {
-        jsonOut({ id, name: opts.name, type: opts.type });
+        jsonOut({ id, name, type });
       }
-      success(`Notification "${opts.name}" created (ID: ${id})`);
+      success(`Notification "${name}" created (ID: ${id})`);
     } catch (err) {
       handleError(err, opts);
     }
